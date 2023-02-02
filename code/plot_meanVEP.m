@@ -1,4 +1,4 @@
-function [y_dataM,y_dataERR1,y_dataERR2]=plot_medianVEP(x_data,y_data,varargin)
+function [y_dataM,y_dataERR1,y_dataERR2]=plot_meanVEP(x_data,y_data,varargin)
 
 q = inputParser;
 q.addParameter('normalize',false,@islogical);
@@ -21,23 +21,23 @@ if q.Results.normalize==1
 end
 
 if q.Results.errorbars=='STEr'
-    y_dataM=median(y_data,1);
+    y_dataM=mean(y_data,1);
     y_dataERR1=y_dataM-(std(y_data,[],1)./sqrt(size(y_data,1)-1));
     y_dataERR2=y_dataM+(std(y_data,[],1)./sqrt(size(y_data,1)-1));
 end
 
 if q.Results.errorbars=='STDe'
-    y_dataM=median(y_data,1);
+    y_dataM=mean(y_data,1);
     y_dataERR1=y_dataM-(std(y_data,[],1));
     y_dataERR2=y_dataM+(std(y_data,[],1));
 end
 
 if q.Results.errorbars=='Boot'
-    bootval=bootstrp(1000,@nanmedian,y_data);
+    bootval=bootstrp(1000,@nanmean,y_data);
     bootval=sort(bootval);
     y_dataM=bootval(500,:);
-    y_dataERR1=bootval(50,:);
-    y_dataERR2=bootval(950,:);
+    y_dataERR1=bootval(25,:);
+    y_dataERR2=bootval(975,:);
 end
 
 x_ERR=cat(2,x_data,fliplr(x_data));
@@ -50,9 +50,9 @@ end
 hold on
 TEMP=fill(x_ERR,y_ERR,q.Results.color_err,'EdgeColor','none');
 plot(x_data,y_dataM,'-','Color',q.Results.color_mean)
-ax=gca; ax.TickDir='out'; ax.Box='off';
-title('Median VEP signal')
-ylabel('VEP signal (mV)')
+ax=gca; ax.TickDir='out'; ax.Box='off';ax.XLim=[0 0.5];
+title('Mean VEP signal')
+ylabel('VEP signal (microV)')
 xlabel('Time (s)')
     if q.Results.normalize==1
         ylabel('Normalized VEP signal')

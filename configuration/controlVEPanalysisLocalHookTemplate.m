@@ -37,8 +37,8 @@ end
 [~, userID] = system('whoami');
 userID = strtrim(userID);
 
-MindsMatter_dataBasePath = ['/Users/' userID '/Users/pattersonc/OneDrive - Children''s Hospital of Philadelphia/Research/Minds Matter/Data/controlVEPanaylsis'];
-controlVEP_analysisBasePath = ['/Users/' userID '/OneDrive - Children''s Hospital of Philadelphia/Research/Minds Matter/Analysis/controlVEPanaylsis'];
+MindsMatter_dataBasePath = ['/Users/' userID '/OneDrive - Children''s Hospital of Philadelphia/Research/Minds Matter/Data/controlVEPanalysis'];
+controlVEP_analysisBasePath = ['/Users/' userID '/OneDrive - Children''s Hospital of Philadelphia/Research/Minds Matter/Analysis/controlVEPanalysis'];
 
 %% Specify where output goes (for mac)
 

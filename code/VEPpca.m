@@ -1,8 +1,11 @@
 % control subjects VEPs
 
-load cleaned_VEP
+data_path = getpref('controlVEPanalysis','MindsMatter_DataPath');
 
-%% Subject selection
+load([data_path '/cleaned_VEP.mat'])
+
+
+%% Subject selection, separate subjects into training and testing groups
 
 % select only control subjects
 control_subject=find(cleaned_vep_files.subjecttype=='Control');

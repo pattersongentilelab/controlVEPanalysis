@@ -1,6 +1,8 @@
 % Preprocess VEP for controls and cases
 
-load VEP_and_subject_data vep_files raw_vep
+data_path = getpref('controlVEPanalysis','MindsMatter_DataPath');
+
+load([data_path '/VEP_and_subject_data.mat'],'vep_files','raw_vep')
 
 %% Organize and filter VEP data, and remove high and low amplitude trials
 
@@ -104,6 +106,6 @@ end
 
 clear *temp
 
-save cleaned_VEP cleaned_vep cleaned_vep_files
+% save cleaned_VEP cleaned_vep cleaned_vep_files
 
 clear

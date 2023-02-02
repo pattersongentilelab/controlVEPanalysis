@@ -1,7 +1,8 @@
 % Organize VEP subject data and combine with VEP matlab files
 
+data_path = getpref('controlVEPanalysis','MindsMatter_DataPath');
 
-load VEPsubject_masterList
+load([data_path '/VEPsubject_masterList111220.mat'])
 
  %% organize and extract VEP files
 filepath_ship=['/Volumes/CIRP_Epidemiology/TM_Pediatric Concussion Prospective Cohort/Data/Equipment Data/VEP/Data exports/Shipley/SHIPLEY 4.22.20 RAW/rdata/'];
@@ -77,6 +78,6 @@ for x=1:size(vep_files,1)
         raw_vep{x,3}=all_VEP;
 end
 
-save VEP_and_subject_data VEPsubject_data vep_files raw_vep
+% save VEP_and_subject_data VEPsubject_data vep_files raw_vep
 
 clear
