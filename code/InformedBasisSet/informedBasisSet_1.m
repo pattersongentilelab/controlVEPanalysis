@@ -6,17 +6,33 @@ data_path = getpref('controlVEPanalysis','MindsMatter_DataPath');
 
 load([data_path '/cleaned_VEP.mat'])
 
-% Get the mean VEP per participant
-xdata = cell2mat(control_vep(1,3)).*1000;
+% select only control subjects
+control_vep=cleaned_vep(cleaned_vep_files.subjecttype=='Control',:);
+control_vep_files=cleaned_vep_files(cleaned_vep_files.subjecttype=='Control',:);
 
-vep = zeros(length(control_vep),length(xdata));
-for i = 1:length(control_vep)
-    temp = cell2mat(control_vep(i,2));
-    vep (i,:) = mean(temp,1).*10;
+unique_ID=unique(cleaned_vep_files.uniqueID);
+xdata = cell2mat(control_vep(1,3)).*1000; % convert time to ms
+
+counter=1;
+vep = NaN*ones(210,512);
+subject_loc = NaN*ones(210,1);
+subject_session_loc = NaN*ones(210,1);
+subject_session_no = NaN*ones(210,1);
+
+for x=1:length(unique_ID)
+    temp_loc=find(cell2mat(control_vep(:,1))==unique_ID(x,:));
+    if length(temp_loc)>1 % select only subjects with multiple sessions
+        temp_loc=temp_loc(1:2); % select only the first two sessions
+        temp_ydata=control_vep(temp_loc,4);
+        for y=1:size(temp_ydata,1)
+            vep(counter,:)=mean(cell2mat(temp_ydata(y,:))).*100; % x100 to correct for scaling error in diopsys device
+            subject_loc(counter,:)=temp_loc(1);
+            subject_session_loc(counter,:)=temp_loc(y);
+            subject_session_no(counter,:)=length(temp_loc);
+            counter=counter+1;
+        end
+    end
 end
-
-% bad_fits = [44 45 46 47 48 49 51 53 54 60];
-% vep = vep(bad_fits,:);
 
 % truncate the part of the VEP fit to the model to improve fits
 minF = 1;
