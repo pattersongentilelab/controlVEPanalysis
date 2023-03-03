@@ -89,6 +89,8 @@ for x=1:size(control_train,1)
     control_pool_vep=control_pool_vep(counter_control_subjects,:,:);
 end
 
+save([analysis_path '/controlTrainTest'],'control_train_vep','control_test_vep','control_train','control_test','xdata');
+
 ydata_train=squeeze(nanmean(control_train_vep,2));
 ydata_test=squeeze(nanmean(control_test_vep,2));
 

@@ -1,38 +1,13 @@
 % Informed basis sets - multiple gamma functions fitting
 
-% VEP to test model on
+% load train and test subjects 2021 TVST PCA paper
+analysis_path = getpref('controlVEPanalysis','controlVEP_AnalysisPath');
+load([analysis_path '/controlTrainTest'])
 
-data_path = getpref('controlVEPanalysis','MindsMatter_DataPath');
+xdata = xdata.*1000; % scale time to ms
 
-load([data_path '/cleaned_VEP.mat'])
-
-% select only control subjects
-control_vep=cleaned_vep(cleaned_vep_files.subjecttype=='Control',:);
-control_vep_files=cleaned_vep_files(cleaned_vep_files.subjecttype=='Control',:);
-
-unique_ID=unique(cleaned_vep_files.uniqueID);
-xdata = cell2mat(control_vep(1,3)).*1000; % convert time to ms
-
-counter=1;
-vep = NaN*ones(210,512);
-subject_loc = NaN*ones(210,1);
-subject_session_loc = NaN*ones(210,1);
-subject_session_no = NaN*ones(210,1);
-
-for x=1:length(unique_ID)
-    temp_loc=find(cell2mat(control_vep(:,1))==unique_ID(x,:));
-    if length(temp_loc)>1 % select only subjects with multiple sessions
-        temp_loc=temp_loc(1:2); % select only the first two sessions
-        temp_ydata=control_vep(temp_loc,4);
-        for y=1:size(temp_ydata,1)
-            vep(counter,:)=mean(cell2mat(temp_ydata(y,:))).*100; % x100 to correct for scaling error in diopsys device
-            subject_loc(counter,:)=temp_loc(1);
-            subject_session_loc(counter,:)=temp_loc(y);
-            subject_session_no(counter,:)=length(temp_loc);
-            counter=counter+1;
-        end
-    end
-end
+vep = [squeeze(nanmean(control_train_vep,2));squeeze(nanmean(control_test_vep,2))].*100; % x100 to correct scaling error on diopsys voltage output
+subject_data = [control_train;control_test];
 
 % truncate the part of the VEP fit to the model to improve fits
 minF = 1;
