@@ -1,6 +1,10 @@
+%% 
 % control subjects VEPs
 
-load cleaned_VEP
+data_path = getpref('controlVEPanalysis','MindsMatter_DataPath');
+analysis_path = getpref('controlVEPanalysis','controlVEP_AnalysisPath');
+load([data_path '/cleaned_VEP.mat'])
+
 xdata=cell2mat(cleaned_vep(1,3));
 %% Subject selection
 
@@ -18,7 +22,7 @@ for x=1:length(unique_ID)
     subject_loc(x,:)=temp_loc(1);
     if length(temp_loc)>1 % select only subjects with multiple sessions <6 months apart
         age_range=control_vep_subjects.age_vep(temp_loc(1:2),:);
-        if diff(age_range,[],1)<0.6
+        if diff(age_range,[],1)<0.5
         temp_loc=temp_loc(1:2); % select only the first two sessions
         temp_ydata=cleaned_vep(temp_loc,4);
             for y=1:size(temp_ydata,1)
@@ -28,7 +32,7 @@ for x=1:length(unique_ID)
         mAge(counter2,:)=mean(control_vep_subjects.age_vep(temp_loc(1:2),:));
         Age_range(counter2,:)=control_vep_subjects.age_vep(temp_loc(1:2),:);
         control_vep_subjects_sess2(counter2,:)=control_vep_subjects(temp_loc(1),:);
-        
+        control_vep_subjects_sess22(counter2,:)=control_vep_subjects(temp_loc(2),:);
         counter2=counter2+1;
         end
     end
@@ -44,15 +48,11 @@ plot(ones(size(age_diff)),age_diff,'.k')
 
 control_vep_subjects=control_vep_subjects(subject_loc,:);
 
-% randomly select 20 male and 20 female subjects for the training PCA
+% load randomly selected 20 male and 20 female subjects for the training PCA
 female=find(control_vep_subjects_sess2.sex_master==1);
 male=find(control_vep_subjects_sess2.sex_master==2);
 
-% tempF=randperm(length(female));
-% tempM=randperm(length(male));
-% save randControlTrainTest tempF tempM
-
-load randControlTrainTest
+load([data_path '/randControlTrainTest.mat'])
 
 tempF1=sort(tempF(1:20));
 tempF2=sort(tempF(21:end));
@@ -93,11 +93,10 @@ ydata_train=squeeze(nanmean(control_train_vep,2));
 ydata_test=squeeze(nanmean(control_test_vep,2));
 
 %% Calculate PCA and plot results on train group
-PC_no=14; % principal component number
+PC_no=7; % principal component number
 [train_coeff,score,explained,latent]=VEPpca(xdata,ydata_train,PC_no);
 
-% Save PCA model
-save PCAmodel train_coeff score explained
+save([analysis_path '/PCAmodel'],'train_coeff','score','explained');
 
 %% fit train PCA to the remaining test control subjects (sex- and age-matched)
 
@@ -132,14 +131,19 @@ for x=1:PC_no
     hist2=histcounts(test_score(:,x),edges,'Normalization','probability');
     Y2=spline(center,hist2,X);
     plot(center,hist1,'.k',X,Y1,'-k')
-    plot(center,hist2,'.g',X,Y2,'-g')
-    [h p]=ttest2(train_score(:,x),test_score(:,x));
+    plot(center,hist2,'.b',X,Y2,'-b')
+    [h p]=kstest2(train_score(:,x),test_score(:,x));
     ax=gca;ax.Box='off';ax.TickDir='out';ax.XLim=[-2.5 2.5];ax.YLim=[0 0.5];
     title(['p-value=' num2str(p)]);
 end
 
+mdl_test=fitlm(cat(1,train_score(:,PC_no),test_score(:,PC_no)),cat(1,zeros(40,1),ones(40,1)));
 
-%% Determine intra-subject correlation coefficients for all subjects with two sessions
+anova(mdl_test,'summary')
+
+
+%% Determine intra-subject correlation coefficients for each PC in train and
+% test groups
 
 for x=1:size(control_train_vep,1)
     for y=1:size(control_train_vep,2)
@@ -152,6 +156,16 @@ for x=1:size(control_train_vep,1)
     end
 end
 
+for x=1:size(control_test_vep,1)
+    for y=1:size(control_test_vep,2)
+        for z=1:size(train_coeff,2)
+            temp1=squeeze(control_test_vep(x,y,:))';
+            temp2=train_coeff(:,z);
+            r=temp1*temp2;
+            test_session_score(x,y,z)=r;
+        end
+    end
+end
 
 train_session1=squeeze(train_session_score(:,1,:));
 train_session2=squeeze(train_session_score(:,2,:));
@@ -163,8 +177,7 @@ figure(4)
 for x=1:PC_no
     subplot(ceil(PC_no/3),3,x)
     hold on
-    plot(train_session1(:,x),train_session2(:,x),'.k','MarkerSize',12)
-    plot(test_session1(:,x),test_session2(:,x),'.','Color',[0.5 0.5 0.5],'MarkerSize',12)
+    plot(test_session1(:,x),test_session2(:,x),'.b','MarkerSize',12)
     plot([-2 2],[-2 2],'--k')
     train_corr=corrcoef(train_session1(:,x),train_session2(:,x));
     test_corr=corrcoef(test_session1(:,x),test_session2(:,x));
@@ -183,9 +196,8 @@ for x=1:size(test_session1,2)
     train_corr(x,:)=temp_corr(1,2);
 end
 hold on
-plot(train_corr,'xb')
-plot(test_corr,'xr')
-plot([0 40],[0.75 0.75],'--k')
+plot(test_corr,'.b','MarkerSize',12)
+plot([0 40],[0.7 0.7],'--k')
 ax=gca;ax.Box='off';ax.TickDir='out';ax.XLim=[1 40];ax.YLim=[-1 1];
 axis('square')
 xlabel('Principal component')
@@ -195,7 +207,7 @@ ylabel('Pearson correlation coefficient (session 1 vs. session 2)')
 figure(7)
 traintest_session1=cat(1,train_session1,test_session1);
 traintest_session2=cat(1,train_session2,test_session2);
-[Eu_dist]=calcEuclidean_dist(PC_no,traintest_session1,traintest_session2);
+[Eu_dist]=calcEuclidean_dist(PC_no,test_session1,test_session2);
 Eu_dist2=Eu_dist-diag(Eu_dist);
 Eu_dist_test2(Eu_dist2==0)=NaN;
 edges=-1:0.5:4; 
@@ -203,6 +215,7 @@ for x=1:size(train_score,1)
     subplot(8,5,x)
     histogram(Eu_dist2(x,:),edges,'Normalization','probability')
     inter_better_intra(x,:)=length(find(Eu_dist2(x,:)<0))./(length(Eu_dist2(x,:))-1);
+    intra_rank(x,:)=length(find(Eu_dist2(x,:)<0))+1;
     hold on
     plot([0 0],[0 0.5],'--k')
      axis('square')
@@ -220,10 +233,135 @@ end
 
 figure(8)
 hold on
-histogram(inter_better_intra.*100,[0:1:50],'Normalization','probability')
+h=histogram(inter_better_intra.*100,[0:1:50],'Normalization','probability');
+temp=h.Values;
 plot([1 1],[0 0.8],'--k')
 axis('square')
 ax=gca;ax.Box='off';ax.TickDir='out';ax.XLim=[0 50];ax.YLim=[0 0.8];
 ylabel('Proportion of subjects')
 xlabel('Percent inter-subject sessions closer than intra-subject session')
+
+figure(9)
+edges=[1:1:10 80];
+center=1.5:1:10.5;
+hold on
+h=histogram(intra_rank,edges,'Normalization','probability');
+temp=h.Values;
+for x=1:length(temp)
+    sum_temp(x,:)=sum(temp(1:x));
+end
+plot(center,sum_temp,'-ok')
+axis('square')
+ax=gca;ax.Box='off';ax.TickDir='out';ax.XLim=[1 11];ax.YLim=[0 1];
+ylabel('Proportion of subjects')
+xlabel('Rank order')
+
+
+explained_test=var(test_score)./sum(var(test_score))*100;
+disp(['variance explained by PCA model for test dataset:' num2str(sum(explained_test(1:PC_no)))]);
+
+%% Determine peak amplitude and peak latency for test subjects
+
+[peakanalysis_session1]=calcVEPpeak(xdata,squeeze(control_test_vep(:,1,:)));
+[peakanalysis_session2]=calcVEPpeak(xdata,squeeze(control_test_vep(:,2,:)));
+
+
+
+figure(15)
+
+subplot(2,3,1)
+hold on
+test_PAcorr_N1L=corrcoef(peakanalysis_session1.N1_latency,peakanalysis_session2.N1_latency);
+plot(peakanalysis_session1.N1_latency,peakanalysis_session2.N1_latency,'.b','MarkerSize',12)
+plot([0.06 0.09],[0.06 0.09],'--k')
+ax=gca;ax.Box='off';ax.TickDir='out';ax.XLim=[0.06 0.09];ax.YLim=[0.06 0.09];
+axis('square')
+xlabel('N1 latency (session 1)')
+ylabel('N1 latency (session 2)')
+title(['R=' num2str(test_PAcorr_N1L(1,2))])
+
+subplot(2,3,2)
+hold on
+test_PAcorr_P1L=corrcoef(peakanalysis_session1.P1_latency,peakanalysis_session2.P1_latency);
+plot(peakanalysis_session1.P1_latency,peakanalysis_session2.P1_latency,'.b','MarkerSize',12)
+plot([0.09 0.13],[0.09 0.13],'--k')
+ax=gca;ax.Box='off';ax.TickDir='out';ax.XLim=[0.09 0.13];ax.YLim=[0.09 0.13];
+axis('square')
+xlabel('P1 latency (session 1)')
+ylabel('P1 latency (session 2)')
+title(['R=' num2str(test_PAcorr_P1L(1,2))])
+
+
+subplot(2,3,3)
+hold on
+test_PAcorr_N2L=corrcoef(peakanalysis_session1.N2_latency,peakanalysis_session2.N2_latency);
+plot(peakanalysis_session1.N2_latency,peakanalysis_session2.N2_latency,'.b','MarkerSize',12)
+plot([0.12 0.175],[0.12 0.175],'--k')
+ax=gca;ax.Box='off';ax.TickDir='out';ax.XLim=[0.12 0.175];ax.YLim=[0.12 0.175];
+axis('square')
+xlabel('N2 latency (session 1)')
+ylabel('N2 latency (session 2)')
+title(['R=' num2str(test_PAcorr_N2L(1,2))])
+
+subplot(2,3,4)
+hold on
+test_PAcorr_N1P1A=corrcoef(peakanalysis_session1.N1P1_amplitude,peakanalysis_session2.N1P1_amplitude);
+plot(peakanalysis_session1.N1P1_amplitude,peakanalysis_session2.N1P1_amplitude,'.b','MarkerSize',12)
+plot([0.005 0.5],[0.005 0.5],'--k')
+ax=gca;ax.Box='off';ax.TickDir='out';ax.XLim=[0.005 0.5];ax.YLim=[0.005 0.5];
+axis('square')
+xlabel('N1P1 amplitude (session 1)')
+ylabel('N1P1 amplitude (session 2)')
+title(['R=' num2str(test_PAcorr_N1P1A(1,2))])
+
+subplot(2,3,5)
+hold on
+test_PAcorr_P1N2A=corrcoef(peakanalysis_session1.P1N2_amplitude,peakanalysis_session2.P1N2_amplitude);
+plot(peakanalysis_session1.P1N2_amplitude,peakanalysis_session2.P1N2_amplitude,'.b','MarkerSize',12)
+plot([0.00003 0.3],[0.00003 0.3],'--k')
+ax=gca;ax.Box='off';ax.TickDir='out';ax.XLim=[0.00003 0.3];ax.YLim=[0.00003 0.3];
+axis('square')
+xlabel('P1N2 amplitude (session 1)')
+ylabel('P1N2 latency (session 2)')
+title(['R=' num2str(test_PAcorr_P1N2A(1,2))])
+
+
+%% Determine peak amplitude and peak latency for test subjects usng diopsys data
+
+figure(16)
+
+subplot(1,3,1)
+hold on
+test_PAcorr_N1L=corrcoef(control_vep_subjects_sess2.Left_Cursor_Lat,control_vep_subjects_sess22.Left_Cursor_Lat);
+plot(control_vep_subjects_sess2.Left_Cursor_Lat,control_vep_subjects_sess22.Left_Cursor_Lat,'.b','MarkerSize',12)
+plot([0.06 0.09],[0.06 0.09],'--k')
+ax=gca;ax.Box='off';ax.TickDir='out';ax.XLim=[0 100];ax.YLim=[0 100];
+axis('square')
+xlabel('N1 latency (session 1)')
+ylabel('N1 latency (session 2)')
+title(['R=' num2str(test_PAcorr_N1L(1,2))])
+
+subplot(1,3,2)
+hold on
+test_PAcorr_P1L=corrcoef(control_vep_subjects_sess2.Right_Cursor_Lat,control_vep_subjects_sess22.Right_Cursor_Lat);
+plot(control_vep_subjects_sess2.Right_Cursor_Lat,control_vep_subjects_sess22.Right_Cursor_Lat,'.b','MarkerSize',12)
+plot([0.09 0.13],[0.09 0.13],'--k')
+ax=gca;ax.Box='off';ax.TickDir='out';ax.XLim=[0 130];ax.YLim=[0 130];
+axis('square')
+xlabel('P1 latency (session 1)')
+ylabel('P1 latency (session 2)')
+title(['R=' num2str(test_PAcorr_P1L(1,2))])
+
+
+subplot(1,3,3)
+hold on
+test_PAcorr_N1P1A=corrcoef(control_vep_subjects_sess2.Delta_Amp,control_vep_subjects_sess22.Delta_Amp);
+plot(control_vep_subjects_sess2.Delta_Amp,control_vep_subjects_sess22.Delta_Amp,'.b','MarkerSize',12)
+plot([0.005 0.5],[0.005 0.5],'--k')
+ax=gca;ax.Box='off';ax.TickDir='out';ax.XLim=[0 50];ax.YLim=[0 50];
+axis('square')
+xlabel('N1P1 amplitude (session 1)')
+ylabel('N1P1 amplitude (session 2)')
+title(['R=' num2str(test_PAcorr_N1P1A(1,2))])
+
 
