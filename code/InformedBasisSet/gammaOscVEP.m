@@ -12,9 +12,12 @@
 % - p(7) is n3 that shifts the peak of the third gamma function
 % - p(8) is t3/n3, which determines the third peak location (in ms)
 % - p(9) is a3 that scales the third (negative) gamma function
-% - p(10) ***
-% - p(11) ***
-% - p(12) ***
+% - p(10) is n4 that shifts the peak of the fourth gamma function
+% - p(11) is t4/n4, which determines the fourth peak location (in ms)
+% - p(12) is a4 that scales the fourth (positive) gamma function
+% - p(13) is f4 that determines the frequency of the oscillation
+% - p(14) is ph4 that determines the starting phase of the oscillation
+% - p(15) is a4 that scales the oscillation
 
 % Outputs:
 % -  vep_fit is the fitted data
@@ -26,7 +29,7 @@
 % Mdl_param = fmincon(myFx,p0,[],[],[],[],lb,ub);
 % yFit = gammaVEP_model3(time,Mdl_param);
 
-function [vep_fit,gamma1,gamma2,gamma3,gamma4] = gammaVEP_model3(t,p)
+function [vep_fit,gamma1,gamma2,gamma3,gamma4,oscillate] = gammaOscVEP(t,p)
 
 % n1/t1 ~= 75, to capture the n75 peak
 n1 = p(1);
@@ -46,25 +49,39 @@ t3 = p(8)/n3;
 a3 = p(9);
 c3 = 1/max((t.^n3).*exp(-t./t3));
 
+% n4/t4 ~= 220
+n4 = p(10);
+t4 = p(11)/n4;
+a4 = p(12);
+c4 = 1/max((t.^n4).*exp(-t./t4));
 
+% oscillation variables
+f5 = p(13);
+ph5 = p(14);
+a5 = p(15);
 
 gamma1 = zeros(1,length(t));
 gamma2 = zeros(1,length(t));
 gamma3 = zeros(1,length(t));
+gamma4 = zeros(1,length(t));
 oscillate = zeros(1,length(t));
+
+%  ramp = []; % ramps up the oscillator; 
 
     for i = 1:length(t)
         gamma1(:,i) = (c1*(t(i)^n1)*(exp(-t(i)/t1)));
         gamma2(:,i) = (c2*(t(i)^n2)*(exp(-t(i)/t2)));
         gamma3(:,i) = (c3*(t(i)^n3)*(exp(-t(i)/t3)));
-        oscillate(:,i) = sin((2*pi*f*t(i)) + p);
+        gamma4(:,i) = (c4*(t(i)^n4)*(exp(-t(i)/t4)));
+        oscillate(:,i) = sin((2*pi*f5*t(i)) + ph5);
     end
 
     gamma1 = a1.*(gamma1./max(gamma1));
     gamma2 = a2.*(gamma2./max(gamma2));
     gamma3 = a3.*(gamma3./max(gamma3));
-   oscillate = a4.*(oscillate./max(oscillate));
+    gamma4 = a4.*(gamma4./max(gamma4));
+    oscillate = a5.*(oscillate./max(oscillate));
 
-    vep_fit = gamma1 + gamma2 + gamma3 + oscillate;
+    vep_fit = gamma1 + gamma2 + gamma3 + gamma4 + oscillate;
  
 end
