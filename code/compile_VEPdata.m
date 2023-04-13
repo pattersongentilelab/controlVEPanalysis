@@ -9,7 +9,7 @@ filepath_ship=['/Volumes/CIRP_Epidemiology/TM_Pediatric Concussion Prospective C
 filepath_clinic=['/Volumes/CIRP_Epidemiology/TM_Pediatric Concussion Prospective Cohort/Data/Equipment Data/VEP/Data exports/Clinic/VEP KOP 4.22.20 RAW/rdata/'];
 
 % Match VEP data to subject
-temp=table2array(VEPsubject_data(:,[1 133 118]));
+temp = [VEPsubject_data.recordID VEPsubject_data.PatientID VEPsubject_data.TestID];
 
 for x=1:length(temp)
     if temp(x,3) <100
