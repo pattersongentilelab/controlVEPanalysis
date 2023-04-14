@@ -1,6 +1,4 @@
-% Informed basis sets - multiple gamma functions fitting
-
-% load train and test subjects 2021 TVST PCA paper
+% load train and test subjects 2021 TVST PCA paper, 5 gamma model
 analysis_path = getpref('controlVEPanalysis','controlVEP_AnalysisPath');
 load([analysis_path '/controlTrainTest'])
 
@@ -11,7 +9,7 @@ subject_data = [control_train;control_test];
 
 % truncate the part of the VEP fit to the model to improve fits
 minF = 1;
-maxF = 308;
+maxF = 400;
 vepF = vep(:,minF:maxF);
 xdataF = xdata(minF:maxF);
 
@@ -21,40 +19,45 @@ gamma1 = zeros(size(vepF));
 gamma2 = zeros(size(vepF));
 gamma3 = zeros(size(vepF));
 gamma4 = zeros(size(vepF));
-mdl = zeros(size(vepF,1),12);
+gamma5 = zeros(size(vepF));
+mdl = zeros(size(vepF,1),15);
 r2 = zeros(size(vepF,1),1);
 bandwidth1 = zeros(size(vepF,1),1);
 bandwidth2 = zeros(size(vepF,1),1);
 bandwidth3 = zeros(size(vepF,1),1);
 bandwidth4 = zeros(size(vepF,1),1);
+bandwidth5 = zeros(size(vepF,1),1);
 
 figure
-j = 1;
 for i = 1:size(vepF,1)
     ydata = vepF(i,:);
-    myFx = @(p) sqrt(sum((ydata - gammaVEP_model4(xdataF,p)).^2));
+    myFx = @(p) sqrt(sum((ydata - gammaVEP_model5(xdataF,p)).^2));
     % Model guess
-    p0 = [35 75 min(ydata) 25 100 max(ydata) 27 135 min(ydata) 30 220 max(ydata)];
-    lb = [10 50 -50 10 70 1 10 90 -50 10 200 1]; 
-    ub = [500 110 -1 500 150 50 500 200 -1 500 300 50];
+    p0 = [35 75 min(ydata) 25 100 max(ydata) 27 135 min(ydata) 30 220 max(ydata) 30 300 min(ydata)];
+    lb = [5 50 -50 5 70 0 5 90 -50 5 200 0 5 300 -50]; 
+    ub = [100 110 0 100 150 50 100 200 0 100 350 50 100 500 0];
     mdl(i,:) = fmincon(myFx,p0,[],[],[],[],lb,ub);
-    [vep_fit] = gammaVEP_model4(0:0.1:500,mdl(i,:));
+    [vep_fit] = gammaVEP_model5(0:0.1:500,mdl(i,:));
     bandwidth1(i) = gamma_bandwidth(0,500,mdl(i,1:2));
     bandwidth2(i) = gamma_bandwidth(0,500,mdl(i,4:5));
     bandwidth3(i) = gamma_bandwidth(0,500,mdl(i,7:8));
     bandwidth4(i) = gamma_bandwidth(0,500,mdl(i,10:11));
-    [yFit(i,:),gamma1(i,:),gamma2(i,:),gamma3(i,:),gamma4(i,:)] = gammaVEP_model4(xdataF,mdl(i,:));
+    bandwidth5(i) = gamma_bandwidth(0,500,mdl(i,13:14));
+    [yFit(i,:),gamma1(i,:),gamma2(i,:),gamma3(i,:),gamma4(i,:),gamma5(i,:)] = gammaVEP_model5(xdataF,mdl(i,:));
     r = corrcoef(ydata,yFit(i,:));
     r2(i,:) = r(1,2)^2;
     
-%     if i == 26 || i == 51
-%         figure
-%         j = 1;
-%     else
-%         j = j+1;
-%     end
-%     subplot(5,5,j)
-    subplot(2,1,1)
+    switch i
+        case {1,9,17,25,33,41,49,57,65,73}
+            figure
+            j = 1;
+        case {5,13,21,29,37,45,53,61,69,77}
+            j = 9;
+        otherwise
+            j = j+1;
+    end
+    
+    subplot(4,4,j)
     plot(xdataF,vepF(i,:),'.k')
     hold on
     plot(xdataF,yFit(i,:),'-r','LineWidth',2)
@@ -62,49 +65,49 @@ for i = 1:size(vepF,1)
     xlabel(sprintf('r2 = %2.2f',r2(i,:)))
     ylabel(sprintf('%2.0f',i))
     title(sprintf(['A1 = %2.0f, P1 = %2.1f, W1 = %2.0f; A2 = %2.0f, P2 = %2.1f, W2 = %2.0f;' ...
-        'A3 = %2.0f, P3 = %2.1f, W3 = %2.0f; A4 = %2.0f, P4 = %2.1f, W4 = %2.0f'],...
+        'A3 = %2.0f, P3 = %2.1f, W3 = %2.0f; A4 = %2.0f, P4 = %2.1f, W4 = %2.0f; A5 = %2.0f, P5 = %2.1f, W5 = %2.0f'],...
         [mdl(i,3) mdl(i,2) bandwidth1(i) mdl(i,6) mdl(i,5) bandwidth2(i) mdl(i,9) mdl(i,8) bandwidth3(i) ...
-        mdl(i,12) mdl(i,11) bandwidth4(i)]))
-    hold off
+        mdl(i,12) mdl(i,11) bandwidth4(i) mdl(i,15) mdl(i,14) bandwidth5(i)]))
     
-    subplot(2,1,2)
+    subplot(4,4,j+4)
     plot(xdataF,gamma1(i,:),'r')
     hold on
     plot(xdataF,gamma2(i,:),'b')
     plot(xdataF,gamma3(i,:),'g')
     plot(xdataF,gamma4(i,:),'m')
+    plot(xdataF,gamma5(i,:),'c')
     ax=gca; ax.TickDir = 'out'; ax.Box = 'off';
-    pause
-    hold off
 end
 
 % Determine fit on mean VEP data across individuals
 meanVEPf = mean(vepF,1);
 ydata = meanVEPf;
-myFx = @(p) sqrt(sum((ydata - gammaVEP_model4(xdataF,p)).^2));
+myFx = @(p) sqrt(sum((ydata - gammaVEP_model5(xdataF,p)).^2));
 % Model guess
-p0 = [35 75 min(ydata) 25 100 max(ydata) 27 135 min(ydata) 30 220 max(ydata)];
+p0 = [35 75 min(ydata) 25 100 max(ydata) 27 135 min(ydata) 30 220 max(ydata) 30 300 min(ydata)];
 Mdl = fmincon(myFx,p0,[],[],[],[],lb,ub);
-[yFit_m,gamma1m,gamma2m,gamma3m,gamma4m] = gammaVEP_model4(xdataF,Mdl);
+[yFit_m,gamma1m,gamma2m,gamma3m,gamma4m,gamma5] = gammaVEP_model5(xdataF,Mdl);
 figure
 plot(xdataF,meanVEPf,'.k')
 hold on
 plot(xdataF,yFit_m,'-r','LineWidth',2)
 ax=gca; ax.TickDir = 'out'; ax.Box = 'off';
 
-bandwidth = cat(2,bandwidth1,bandwidth2,bandwidth3,bandwidth4);
+bandwidth = cat(2,bandwidth1,bandwidth2,bandwidth3,bandwidth4,bandwidth5);
 
 % plotting parameters
-param = {'width 1','peak time 1','amplitude 1','width 2','peak time 2','amplitude 2','width 3','peak time 3','amplitude 3','width 4','peak time 4','amplitude 4'};
+param = {'width 1','peak time 1','amplitude 1','width 2','peak time 2','amplitude 2','width 3','peak time 3','amplitude 3','width 4','peak time 4','amplitude 4','width 5','peak time 5','amplitude 5'};
 figure
-for x = 1:12
-    subplot(4,3,x)
+y = 1;
+for x = 1:15
+    subplot(5,3,x)
     switch x
         case [1,4,7,10]
-            tDn = mdl(:,x)./mdl(:,x-1);
-            plot(ones(size(tDn)),tDn,'.k')
+            bw = bandwidth(:,y);
+            plot(ones(size(bw)),bw,'.k')
             hold on
             errorbar(1,mean(tDn),std(tDn),'or','LineWidth',2,'MarkerFaceColor','r')
+            y = y+1;
         otherwise
             plot(ones(size(mdl(:,x))),mdl(:,x),'.k')
             hold on
@@ -114,4 +117,18 @@ for x = 1:12
 end
 
 
-
+% Plot params by age
+figure
+for x = 1:15
+    subplot(5,3,x)
+    switch x
+        case [1,4,7,10]
+            tDn = mdl(:,x)./mdl(:,x-1);
+            plot(subject_data.age_vep,tDn,'.k')
+            lsline
+        otherwise
+            plot(subject_data.age_vep,mdl(:,x),'.k')
+            lsline
+    end
+    ax = gca; ax.TickDir = 'out'; ax.Box = 'off'; title(param(x));
+end
