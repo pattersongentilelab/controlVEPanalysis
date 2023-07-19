@@ -7,12 +7,6 @@ xdata = xdata.*1000; % scale time to ms
 vep = [squeeze(nanmean(control_train_vep,2));squeeze(nanmean(control_test_vep,2))].*100; % x100 to correct scaling error on diopsys voltage output
 subject_data = [control_train;control_test];
 
-% introduce noise to determine the stability of the gamma functions
-r_noise = rand(size(vep)).*0.1; % random noise
-vep = vep + r_noise;
-% vep = cat(2,vep(:,20:end),vep(:,1:19)); % shifts the waveform
-
-
 % truncate the part of the VEP fit to the model to improve fits
 minF = 1;
 maxF = 400;
