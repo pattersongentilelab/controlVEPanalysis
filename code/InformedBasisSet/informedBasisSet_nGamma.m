@@ -28,13 +28,13 @@ end
 meanVEP = mean(vep,1);
 
 gammaC = {'b','r','k','g','m','c','y'};
-nGamma = 7;
+nGamma = 6;
 mdl_x = 0:0.1:500;
 r2 = zeros(6,size(control_vep,1));
 trialR2 = zeros(size(control_vep,1),nGamma,100);
-Peak = cell(nGamma);
-Amp = cell(nGamma);
-Bandwidth = cell(nGamma);
+Peak = cell(nGamma,1);
+Amp = cell(nGamma,1);
+Bandwidth = cell(nGamma,1);
 
 figure(205)
 plot(xdata,meanVEP,'.k')
@@ -84,7 +84,7 @@ for I = 1:nGamma
                 ub = [Inf Inf 0 Inf Inf Inf Inf Inf 0 Inf Inf Inf Inf Inf 0 Inf Inf Inf];
             case 7
                 p0 = [35 75 min(ydata) 25 100 max(ydata) 27 135 min(ydata) 30 220 max(ydata) 30 300 min(ydata) 30 400 max(ydata) 30 400 min(ydata)];
-                lb = [0 0 -Inf 0 0 0 0 0 -Inf 0 0 0 0 0 -Inf 0 0 0 0 0 0 -Inf]; 
+                lb = [0 0 -Inf 0 0 0 0 0 -Inf 0 0 0 0 0 -Inf 0 0 0 0 0 -Inf]; 
                 ub = [Inf Inf 0 Inf Inf Inf Inf Inf 0 Inf Inf Inf Inf Inf 0 Inf Inf Inf Inf Inf 0];
         end
     
@@ -206,74 +206,144 @@ for I = 1:nGamma
     Bandwidth(I) = {bandwidth};
 end
 
-% compare parameters gamma3 and gamma6
-B3data = Bandwidth{1,3};
-B6data = Bandwidth{1,6};
-P3data = Peak{1,3};
-P6data = Peak{1,6};
-A3data = Amp{3};
-A6data = Amp{6};
+% Plot R2 values for train and test fits
+mR2 = squeeze(mean(trialR2(:,1:6,:),3));
+stdR2 = squeeze(std(trialR2(:,1:6,:),[],3));
+
+figure(220)
+hold on
+
+for x = 1:size(mR2,2)
+    errorbar(x,mean(mR2(:,x)),mean(stdR2(:,x)),'o','LineWidth',2,'MarkerFaceColor',gammaC{x},'MarkerEdgeColor',gammaC{x},'Color',gammaC{x})
+end
+ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.XLim = [0 nGamma+1];
+
+% compare parameters gamma4 and gamma5
+B4data = Bandwidth{4,1};
+B5data = Bandwidth{5,1};
+P4data = Peak{4,1};
+P5data = Peak{5,1};
+A4data = Amp{4,1};
+A5data = Amp{5,1};
 
 figure
-subplot(3,3,1)
+subplot(4,3,1)
 hold on
 title('bandwidth1')
-plot(B3data(:,1),B6data(:,1),'.k','MarkerSize',12)
+plot(B4data(:,1),B5data(:,1),'.k','MarkerSize',12)
 plot([0 500],[0 500],'--k')
 ax = gca; ax.TickDir = 'out'; ax.Box = 'off'; axis('square');
+rr = corrcoef(B4data(:,1),B5data(:,1));
+rr2 = rr(1,2)^2;
+xlabel(sprintf('r2 = %2.2f',rr2))
 
-subplot(3,3,4)
+subplot(4,3,4)
 hold on
 title('bandwidth2')
-plot(B3data(:,2),B6data(:,2),'.k','MarkerSize',12)
+plot(B4data(:,2),B5data(:,2),'.k','MarkerSize',12)
 plot([0 500],[0 500],'--k')
 ax = gca; ax.TickDir = 'out'; ax.Box = 'off'; axis('square');
+rr = corrcoef(B4data(:,2),B5data(:,2));
+rr2 = rr(1,2)^2;
+xlabel(sprintf('r2 = %2.2f',rr2))
 
-subplot(3,3,7)
+subplot(4,3,7)
 hold on
 title('bandwidth3')
-plot(B3data(:,3),B6data(:,3),'.k','MarkerSize',12)
+plot(B4data(:,3),B5data(:,3),'.k','MarkerSize',12)
 plot([0 500],[0 500],'--k')
 ax = gca; ax.TickDir = 'out'; ax.Box = 'off'; axis('square');
+rr = corrcoef(B4data(:,3),B5data(:,3));
+rr2 = rr(1,2)^2;
+xlabel(sprintf('r2 = %2.2f',rr2))
 
-subplot(3,3,2)
+subplot(4,3,10)
+hold on
+title('bandwidth4')
+plot(B4data(:,4),B5data(:,4),'.k','MarkerSize',12)
+plot([0 500],[0 500],'--k')
+ax = gca; ax.TickDir = 'out'; ax.Box = 'off'; axis('square');
+rr = corrcoef(B4data(:,4),B5data(:,4));
+rr2 = rr(1,2)^2;
+xlabel(sprintf('r2 = %2.2f',rr2))
+
+subplot(4,3,2)
 hold on
 title('peak1')
-plot(P3data(:,1),P6data(:,1),'.k','MarkerSize',12)
+plot(P4data(:,1),P5data(:,1),'.k','MarkerSize',12)
 plot([0 500],[0 500],'--k')
 ax = gca; ax.TickDir = 'out'; ax.Box = 'off'; axis('square');
+rr = corrcoef(P4data(:,1),P5data(:,1));
+rr2 = rr(1,2)^2;
+xlabel(sprintf('r2 = %2.2f',rr2))
 
-subplot(3,3,5)
+subplot(4,3,5)
 hold on
 title('peak2')
-plot(P3data(:,2),P6data(:,2),'.k','MarkerSize',12)
+plot(P4data(:,2),P5data(:,2),'.k','MarkerSize',12)
 plot([0 500],[0 500],'--k')
 ax = gca; ax.TickDir = 'out'; ax.Box = 'off'; axis('square');
+rr = corrcoef(P4data(:,2),P5data(:,2));
+rr2 = rr(1,2)^2;
+xlabel(sprintf('r2 = %2.2f',rr2))
 
-subplot(3,3,8)
+subplot(4,3,8)
 hold on
 title('peak3')
-plot(P3data(:,3),P6data(:,3),'.k','MarkerSize',12)
+plot(P4data(:,3),P5data(:,3),'.k','MarkerSize',12)
 plot([0 500],[0 500],'--k')
 ax = gca; ax.TickDir = 'out'; ax.Box = 'off'; axis('square');
+rr = corrcoef(P4data(:,3),P5data(:,3));
+rr2 = rr(1,2)^2;
+xlabel(sprintf('r2 = %2.2f',rr2))
 
-subplot(3,3,3)
+subplot(4,3,11)
+hold on
+title('peak4')
+plot(P4data(:,4),P5data(:,4),'.k','MarkerSize',12)
+plot([0 500],[0 500],'--k')
+ax = gca; ax.TickDir = 'out'; ax.Box = 'off'; axis('square');
+rr = corrcoef(P4data(:,4),P5data(:,4));
+rr2 = rr(1,2)^2;
+xlabel(sprintf('r2 = %2.2f',rr2))
+
+subplot(4,3,3)
 hold on
 title('amplitude1')
-plot(A3data(:,1),A6data(:,1),'.k','MarkerSize',12)
+plot(A4data(:,1),A5data(:,1),'.k','MarkerSize',12)
 plot([-2000 0],[-2000 0],'--k')
 ax = gca; ax.TickDir = 'out'; ax.Box = 'off'; axis('square');
+rr = corrcoef(A4data(:,1),A5data(:,1));
+rr2 = rr(1,2)^2;
+xlabel(sprintf('r2 = %2.2f',rr2))
 
-subplot(3,3,6)
+subplot(4,3,6)
 hold on
 title('amplitude2')
-plot(A3data(:,2),A6data(:,2),'.k','MarkerSize',12)
+plot(A4data(:,2),A5data(:,2),'.k','MarkerSize',12)
 plot([0 4000],[0 4000],'--k')
 ax = gca; ax.TickDir = 'out'; ax.Box = 'off'; axis('square');
+rr = corrcoef(A4data(:,2),A5data(:,2));
+rr2 = rr(1,2)^2;
+xlabel(sprintf('r2 = %2.2f',rr2))
 
-subplot(3,3,9)
+subplot(4,3,9)
 hold on
 title('amplitude3')
-plot(A3data(:,3),A6data(:,3),'.k','MarkerSize',12)
+plot(A4data(:,3),A5data(:,3),'.k','MarkerSize',12)
 plot([-4000 0],[-4000 0],'--k')
 ax = gca; ax.TickDir = 'out'; ax.Box = 'off'; axis('square');
+rr = corrcoef(A4data(:,3),A5data(:,3));
+rr2 = rr(1,2)^2;
+xlabel(sprintf('r2 = %2.2f',rr2))
+
+subplot(4,3,12)
+hold on
+title('amplitude4')
+plot(A4data(:,4),A5data(:,4),'.k','MarkerSize',12)
+plot([-4000 0],[-4000 0],'--k')
+ax = gca; ax.TickDir = 'out'; ax.Box = 'off'; axis('square');
+rr = corrcoef(A4data(:,4),A5data(:,4));
+rr2 = rr(1,2)^2;
+xlabel(sprintf('r2 = %2.2f',rr2))
+
