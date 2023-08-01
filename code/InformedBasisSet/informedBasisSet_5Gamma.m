@@ -31,11 +31,11 @@ bootVEP = bootstat([25 500 975],:);
 
 gammaC = {'b','r','k','g','m','c','y'};
 mdl_x = 0:0.1:500;
-nGamma = 5;
+nGamma = 4;
 r2 = zeros(size(control_vep,1),1);
 
-lb = [0 30 -100 0 50 -100 0 70 -100 0 200 -100 0 300 -100]; 
-ub = [500 100 100 500 150 100 500 250 100 500 500 100 500 1000 100];
+lb = [10 50 -20 10 70 0 10 110 -20 10 200 0]; 
+ub = [100 90 0 100 110 20 100 200 0 100 500 20];
 
  % Determine fit on mean VEP data across individuals
 ydata = meanVEP;
@@ -64,7 +64,7 @@ for i = 1:size(control_vep,1)
     ydata = vep(i,:); % averaged across trials, already corrected for diopsys amplification error above
 
 % 
-    p0 = [35 75 min(ydata) 25 100 max(ydata) 27 135 min(ydata) 30 220 max(ydata) 30 300 min(ydata)];
+    p0 = [35 75 min(ydata) 25 100 max(ydata) 27 135 min(ydata) 30 220 max(ydata)];
 
     myFx = @(p) sqrt(sum((ydata - gammaVEP_model(xdata,p,nGamma)).^2));
     mdl(i,:) = fmincon(myFx,p0,[],[],[],[],lb,ub);
@@ -129,7 +129,7 @@ for x = 1:3
         end
         boostat = sort(bootstat);
         boot = bootstat([25 500 975]);
-        errorbar(xdata,bootVEP(2),abs(diff(boot(1:2))),abs(diff(boot(2:3))),'o','LineWidth',2,'MarkerFaceColor',gammaC{y},'MarkerEdgeColor',gammaC{y},'Color',gammaC{y})
+        errorbar(y,boot(2),abs(diff(boot(1:2))),abs(diff(boot(2:3))),'o','LineWidth',2,'MarkerFaceColor',gammaC{y},'MarkerEdgeColor',gammaC{y},'Color',gammaC{y})
         
     end
     ax = gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.XTick = 1:nGamma; ax.XLim = [0 nGamma+1];
