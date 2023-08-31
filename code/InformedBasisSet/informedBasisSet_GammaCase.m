@@ -1,47 +1,34 @@
 % Use single gamma model (can adjust to different number of gammas)
 
-
 data_path = getpref('controlVEPanalysis','MindsMatter_DataPath');
 load([data_path '/randControlTrainTest.mat']) % participants selected for train and test
 load([data_path '/cleaned_VEP.mat'])
 
-subject_type = 1; % 0 for uninjured participants, 1 for concussion participants
+%% select case subjects who have VEP <28 days and >28 days post injury
 
-%% select control subjects
+case_subject = find(cleaned_vep_files.subjecttype=='Case');
+cleaned_vep = cleaned_vep(case_subject,:);
+case_vep_subjects = cleaned_vep_files(case_subject,:);
+xdata = cleaned_vep{1,3}.*1000; %convert to ms
 
-if subject_type==0
-    control_subject = find(cleaned_vep_files.subjecttype=='Control');
-    cleaned_vep = cleaned_vep(control_subject,:);
-    control_vep_subjects = cleaned_vep_files(control_subject,:);
-    xdata = cleaned_vep{1,3}.*1000; %convert to ms
+unique_ID = unique(case_vep_subjects.uniqueID);
+case_vep = cell(length(unique_ID),3);
+vep = zeros(length(unique_ID),length(xdata));
+subject = control_vep_subjects(1,:);
 
-    % Select first session for each participant
-    unique_ID = unique(control_vep_subjects.uniqueID);
-    control_vep = cell(length(unique_ID),3);
-    vep = zeros(length(unique_ID),length(xdata));
-    subject = control_vep_subjects(1,:);
-
-    for x = 1:length(unique_ID)
-        temp_loc = find(cell2mat(cleaned_vep(:,1))==unique_ID(x,:));
-        control_vep(x,:) = cleaned_vep(temp_loc(1),[1 2 4]);
-        vep(x,:) = mean(cleaned_vep{temp_loc(1),4},1).*100; %correct amplification issue with diopsys
-        subject(x,:) = control_vep_subjects(temp_loc(1),:);
-        clear temp_loc
-    end
-end
-
-%% select case subjects with data collected at <28 days, and >28 days
-if subject_type==1
-    case_subject = find(cleaned_vep_files.subjecttype=='Case');
-    cleaned_vep = cleaned_vep(control_subject,:);
-    control_vep_subjects = cleaned_vep_files(control_subject,:);
+for x = 1:length(unique_ID)
+    temp_loc = find(cell2mat(cleaned_vep(:,1))==unique_ID(x,:));
+    case_vep(x,:) = cleaned_vep(temp_loc(1),[1 2 4]);
+    vep(x,:) = mean(cleaned_vep{temp_loc(1),4},1).*100; %correct amplification issue with diopsys
+    subject(x,:) = control_vep_subjects(temp_loc(1),:);
+    clear temp_loc
 end
 
 %% Fit gamma model to selected subjects
 % select time window and number of gammas in function
 time_end = 500; % determines the epoch looked at in ms from t = 0 being the alternating checkerboard
 xdata_end = length(xdata(xdata<=time_end));
-gammaC = {'b','r','k','g','m','c','y'};
+gammaC = {'b','r','m','g','c','y'};
 mdl_x = 0:0.1:time_end;
 nGamma = 4;
 
