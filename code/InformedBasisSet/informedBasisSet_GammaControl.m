@@ -36,6 +36,13 @@ temp = setdiff(subject.uniqueID,neuro_active_meds);
 subject = subject(ismember(subject.uniqueID,temp),:);
 vep = vep(ismember(subject.uniqueID,temp),:);
 
+
+% shift VEP to 0 = mean response
+for x = 1:size(vep)
+        ydata = vep(x,:);
+        vep(x,:) = ydata - mean(ydata);
+end
+
 %% Fit gamma model to selected subjects
 % select time window and number of gammas in function
 time_end = 500; % determines the epoch looked at in ms from t = 0 being the alternating checkerboard
@@ -59,40 +66,132 @@ gamma = zeros(nGamma,length(mdl_x));
 Gamma = zeros(size(vep,1),nGamma,length(mdl_x));
 yFit = zeros(size(vep));
 bandwidth = NaN*ones(size(vep,1),nGamma);
-    
+
+Amp75 = zeros(size(vep,1),1);
+Peak75 = zeros(size(vep,1),1);
+Amp100 = zeros(size(vep,1),1);
+Peak100 = zeros(size(vep,1),1);
+Amp135 = zeros(size(vep,1),1);
+Peak135 = zeros(size(vep,1),1);
+Amp220 = zeros(size(vep,1),1);
+Peak220 = zeros(size(vep,1),1);
+        
+figure
+for i = 1:size(vep,1)
+    hold on
+    plot([0 500],[0 0],'--k')
+    ydata = vep(i,:);
+    diffY = diff([min(ydata) max(ydata)]);
+    plot(xdata,ydata,'Color',[0.5 0.5 0.5])
+    min_loc = islocalmin(ydata,'MinProminence',diffY*.2);
+    min_peak = xdata(min_loc==1);
+    max_loc = islocalmax(ydata,'MinProminence',diffY*.2);
+    max_peak = xdata(max_loc==1);
+
+    x = sum(min_loc(xdata>60 & xdata<90));
+    switch x
+        case 0
+            amp75 = min(ydata(xdata>60 & xdata<90));
+            peak75 = xdata(ydata==amp75);
+            peak75 = peak75(1);
+        case 1
+            peak75 = min_peak(min_peak>60 & min_peak<90);
+            amp75 = ydata(xdata==peak75);
+        otherwise
+            peak75 = min_peak(min_peak>60 & min_peak<90);
+            peak75 = peak75(1);
+            amp75 = ydata(xdata==peak75);
+    end
+    if amp75>-1
+        amp75 = -1;
+    end
+
+    plot(peak75,amp75,'+b')
+
+     x = sum(max_loc(xdata>peak75+5 & xdata<130));
+    switch x
+        case 0
+            amp100 = max(ydata(xdata>peak75+5 & xdata<130));
+            peak100 = xdata(ydata==amp100);
+            peak100 = peak100(1);
+        case 1
+            peak100 = max_peak(max_peak>peak75+5 & max_peak<130);
+            amp100 = ydata(xdata==peak100);
+        otherwise
+            peak100 = max_peak(max_peak>peak75+5 & max_peak<130);
+            peak100 = peak100(1);
+            amp100 = ydata(xdata==peak100);
+    end
+
+    if amp100<1
+        amp100 = 1;
+    end
+    plot(peak100,amp100,'+r')
+
+    x = sum(min_loc(xdata>peak100+5 & xdata<200));
+    switch x
+        case 0
+            amp135 = min(ydata(xdata>peak100+5 & xdata<200));
+            peak135 = xdata(ydata==amp135);
+            peak135 = peak135(1);
+        case 1
+            peak135 = min_peak(min_peak>peak100+5 & min_peak<200);
+            amp135 = ydata(xdata==peak135);
+        otherwise
+            peak135 = min_peak(min_peak>peak100+5 & min_peak<200);
+            peak135 = peak135(1);
+            amp135 = ydata(xdata==peak135);
+    end
+
+    if amp135>-1
+        amp135 = -1;
+    end
+    plot(peak135,amp135,'+m')
+
+   x = sum(max_loc(xdata>peak135+30 & xdata<350));
+    switch x
+        case 0
+            amp220 = max(ydata(xdata>peak135+30 & xdata<350));
+            peak220 = xdata(ydata==amp220);
+            peak220 = peak220(1);
+        case 1
+            peak220 = max_peak(max_peak>peak135+30 & max_peak<350);
+            amp220 = ydata(xdata==peak220);
+        otherwise
+            peak220 = max_peak(max_peak>peak135+30 & max_peak<350);
+            peak220 = peak220(1);
+            amp220 = ydata(xdata==peak220);
+    end
+
+    if amp220<1
+        amp220 = 1;
+    end
+
+    plot(peak220,amp220,'+g')
+
+    ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.YLim = [-45 45]; ax.XLim = [0 time_end];
+        
+    Amp75(i,:) = amp75;
+    Peak75(i,:) = peak75;
+    Amp100(i,:) = amp100;
+    Peak100(i,:) = peak100;
+    Amp135(i,:) = amp135;
+    Peak135(i,:) = peak135;
+    Amp220(i,:) = amp220;
+    Peak220(i,:) = peak220;
+
+    pause(1)
+    clf
+end
 
 for i = 1:size(vep,1)
 
     ydata = vep(i,:); % averaged across trials, already corrected for diopsys amplification error above
     
-    amp75 = min(ydata(66:90)); % limit N75 peak from 65 - 85ms
-    if amp75>0
-        amp75 = -1;
-    end
-    x_temp = xdata(60:87); peak75 = x_temp(ydata(60:87)==min(ydata(60:87)));
-    
-    amp100 = max(ydata(92:128)); % limit P100 peak from 90 to 125ms
-    if amp100<0
-        amp100 = 1;
-    end
-    x_temp = xdata(92:128); peak100 = x_temp(ydata((92:128))==max(ydata((92:128))));
-    
-    amp135 = min(ydata(134:179)); % limit N135 130 to 175ms
-    if amp135>0
-        amp135 = -1;
-    end
-    x_temp = xdata(134:179); peak135 = x_temp(ydata((134:179))==min(ydata((134:179))));
-    
-    amp220 = max(ydata(185:256)); % limit late peak from 180 to 250ms
-    if amp220<0
-        amp220 = 1;
-    end
-    x_temp = xdata(185:256); peak220 = x_temp(ydata((185:256))==max(ydata((185:256))));
-    
-    p0 = [40 peak75 amp75 50 peak100 amp100 40 peak135 amp135 30 peak220 amp220];
-    lb = [20 peak75-2 amp75*1.05 20 peak100-3 0.5 20 peak135-5 amp135*1.05 20 peak220-5 0.5]; 
-    ub = [150 peak75+2 -0.5 150 peak100+3 amp100*1.05 150 peak135+5 -0.5 150 peak220+5 amp220*1.05];
-
+    p0 = [70 Peak75(i,:) Amp75(i,:) 80 Peak100(i,:) Amp100(i,:) 80 Peak135(i,:) Amp135(i,:) 60 Peak220(i,:) Amp220(i,:)];
+    lb = [40 Peak75(i,:)-2 Amp75(i,:)*1.05 40 Peak100(i,:)-3 0.5 40 Peak135(i,:)-5 Amp135(i,:)*1.05 10 Peak220(i,:)-5 0.5]; 
+    ub = [150 Peak75(i,:)+2 -0.5 150 Peak100(i,:)+3 Amp100(i,:)*1.05 150 Peak135(i,:)+5 -0.5 150 Peak220(i,:)+5 Amp220(i,:)*1.05];
+       
     myFx = @(p) sqrt(sum((ydata - gammaVEP_model(xdata,p,nGamma)).^2));
     mdl(i,:) = fmincon(myFx,p0,[],[],[],[],lb,ub);
     [vep_fit,gamma] = gammaVEP_model(mdl_x,mdl(i,:),nGamma);
@@ -245,6 +344,7 @@ ax = gca; ax.TickDir = 'out'; ax.Box = 'off';
 figure
 for i = 1:size(vep,1)
     hold on
+    plot(xdata,vep(i,:),'-','Color',[0.5 0.5 0.5])
     plot(mdl_x,squeeze(sum(Gamma(i,:,:),2)),'c')
     for X = 1:nGamma
          plot(mdl_x,squeeze(Gamma(i,X,:)),['-' gammaC{X}])

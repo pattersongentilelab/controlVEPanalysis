@@ -26,11 +26,19 @@ for x = 1:length(unique_ID)
     temp = cleaned_vep{temp_loc(1),4};
     if size(temp,1)>150
         randAll = randperm(size(temp,1),size(temp,1)); % randomly split the data in two parts
-        vep(counter,1,:) = mean(temp(randAll(1:end/2),:),1).*100; %correct amplification issue with diopsys
-        vep(counter,2,:) = mean(temp(randAll(end/2+1:end),:),1).*100; %correct amplification issue with diopsys
+        vep(counter,1,:) = mean(temp(randAll(1:round(end/2)),:),1).*100; %correct amplification issue with diopsys
+        vep(counter,2,:) = mean(temp(randAll(round(end/2)+1:end),:),1).*100; %correct amplification issue with diopsys
         counter = counter+1;
     end
     clear temp_loc
+end
+
+% shift VEP to 0 = mean response
+for x = 1:size(vep)
+    for y = 1:2
+        ydata = squeeze(vep(x,y,:));
+        vep(x,y,:) = ydata - mean(ydata);
+    end
 end
 
 %remove participants on neuroactive meds
@@ -53,6 +61,130 @@ meanVEP = squeeze(mean(vep,1));
 r_val = zeros(size(vep,1),2);
 r2 = zeros(size(vep,1),2);
 
+%% Check for local minima and maxima for model guesses
+
+Amp75 = zeros(size(vep,1),2);
+Peak75 = zeros(size(vep,1),2);
+Amp100 = zeros(size(vep,1),2);
+Peak100 = zeros(size(vep,1),2);
+Amp135 = zeros(size(vep,1),2);
+Peak135 = zeros(size(vep,1),2);
+Amp220 = zeros(size(vep,1),2);
+Peak220 = zeros(size(vep,1),2);
+        
+figure
+for i = 1:size(vep,1)
+    for j = 1:2
+        subplot(1,2,j)
+        hold on
+        plot([0 500],[0 0],'--k')
+        ydata = squeeze(vep(i,j,:));
+        diffY = diff([min(ydata) max(ydata)]);
+        plot(xdata,ydata,'Color',[0.5 0.5 0.5])
+        min_loc = islocalmin(ydata,'MinProminence',diffY*.2);
+        min_peak = xdata(min_loc==1);
+        max_loc = islocalmax(ydata,'MinProminence',diffY*.2);
+        max_peak = xdata(max_loc==1);
+        
+        x = sum(min_loc(xdata>60 & xdata<90));
+        switch x
+            case 0
+                amp75 = min(ydata(xdata>60 & xdata<90));
+                peak75 = xdata(ydata==amp75);
+                peak75 = peak75(1);
+            case 1
+                peak75 = min_peak(min_peak>60 & min_peak<90);
+                amp75 = ydata(xdata==peak75);
+            otherwise
+                peak75 = min_peak(min_peak>60 & min_peak<90);
+                peak75 = peak75(1);
+                amp75 = ydata(xdata==peak75);
+        end
+        if amp75>-1
+            amp75 = -1;
+        end
+        
+        plot(peak75,amp75,'+b')
+        
+         x = sum(max_loc(xdata>peak75+5 & xdata<130));
+        switch x
+            case 0
+                amp100 = max(ydata(xdata>peak75+5 & xdata<130));
+                peak100 = xdata(ydata==amp100);
+                peak100 = peak100(1);
+            case 1
+                peak100 = max_peak(max_peak>peak75+5 & max_peak<130);
+                amp100 = ydata(xdata==peak100);
+            otherwise
+                peak100 = max_peak(max_peak>peak75+5 & max_peak<130);
+                peak100 = peak100(1);
+                amp100 = ydata(xdata==peak100);
+        end
+        
+        if amp100<1
+            amp100 = 1;
+        end
+        plot(peak100,amp100,'+r')
+       
+        x = sum(min_loc(xdata>peak100+5 & xdata<200));
+        switch x
+            case 0
+                amp135 = min(ydata(xdata>peak100+5 & xdata<200));
+                peak135 = xdata(ydata==amp135);
+                peak135 = peak135(1);
+            case 1
+                peak135 = min_peak(min_peak>peak100+5 & min_peak<200);
+                amp135 = ydata(xdata==peak135);
+            otherwise
+                peak135 = min_peak(min_peak>peak100+5 & min_peak<200);
+                peak135 = peak135(1);
+                amp135 = ydata(xdata==peak135);
+        end
+        
+        if amp135>-1
+            amp135 = -1;
+        end
+        plot(peak135,amp135,'+m')
+        
+       x = sum(max_loc(xdata>peak135+30 & xdata<350));
+        switch x
+            case 0
+                amp220 = max(ydata(xdata>peak135+30 & xdata<350));
+                peak220 = xdata(ydata==amp220);
+                peak220 = peak220(1);
+            case 1
+                peak220 = max_peak(max_peak>peak135+30 & max_peak<350);
+                amp220 = ydata(xdata==peak220);
+            otherwise
+                peak220 = max_peak(max_peak>peak135+30 & max_peak<350);
+                peak220 = peak220(1);
+                amp220 = ydata(xdata==peak220);
+        end
+ 
+        if amp220<1
+            amp220 = 1;
+        end
+        
+        plot(peak220,amp220,'+g')
+        
+        ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.YLim = [-45 45]; ax.XLim = [0 time_end];
+        
+        Amp75(i,j) = amp75;
+        Peak75(i,j) = peak75;
+        Amp100(i,j) = amp100;
+        Peak100(i,j) = peak100;
+        Amp135(i,j) = amp135;
+        Peak135(i,j) = peak135;
+        Amp220(i,j) = amp220;
+        Peak220(i,j) = peak220;
+    end
+    pause(1)
+    subplot(1,2,1)
+    clf
+    subplot(1,2,2)
+    clf
+end
+
 %% Determine fits on individual VEP data
 mdl = zeros(size(vep,1),2,3*nGamma);
 Gamma = zeros(size(vep,1),2,nGamma,length(mdl_x));
@@ -65,35 +197,11 @@ for I = 1:2 % loop across session
     for i = 1:size(vep,1)
 
         ydata = squeeze(vep(i,I,:))'; % averaged across trials, already corrected for diopsys amplification error above
-
-    amp75 = min(ydata(66:90)); % limit N75 peak from 65 - 85ms
-    if amp75>0
-        amp75 = -1;
-    end
-    x_temp = xdata(60:87); peak75 = x_temp(ydata(60:87)==min(ydata(60:87)));
-    
-    amp100 = max(ydata(92:128)); % limit P100 peak from 90 to 125ms
-    if amp100<0
-        amp100 = 1;
-    end
-    x_temp = xdata(92:128); peak100 = x_temp(ydata((92:128))==max(ydata((92:128))));
-    
-    amp135 = min(ydata(134:179)); % limit N135 130 to 175ms
-    if amp135>0
-        amp135 = -1;
-    end
-    x_temp = xdata(134:179); peak135 = x_temp(ydata((134:179))==min(ydata((134:179))));
-    
-    amp220 = max(ydata(185:256)); % limit late peak from 180 to 250ms
-    if amp220<0
-        amp220 = 1;
-    end
-    x_temp = xdata(185:256); peak220 = x_temp(ydata((185:256))==max(ydata((185:256))));
-    
-    p0 = [40 peak75 amp75 50 peak100 amp100 40 peak135 amp135 30 peak220 amp220];
-    lb = [20 peak75-2 amp75*1.05 20 peak100-3 0.5 20 peak135-5 amp135*1.05 20 peak220-5 0.5]; 
-    ub = [150 peak75+2 -0.5 150 peak100+3 amp100*1.05 150 peak135+5 -0.5 150 peak220+5 amp220*1.05];
-
+        
+        p0 = [40 Peak75(i,j) Amp75(i,j) 50 Peak100(i,j) Amp100(i,j) 50 Peak135(i,j) Amp135(i,j) 30 Peak220(i,j) Amp220(i,j)];
+        lb = [20 Peak75(i,j)-2 Amp75(i,j)*1.05 40 Peak100(i,j)-3 0.5 40 Peak135(i,j)-5 Amp135(i,j)*1.05 10 Peak220(i,j)-5 0.5]; 
+        ub = [150 Peak75(i,j)+2 -0.5 150 Peak100(i,j)+3 Amp100(i,j)*1.05 150 Peak135(i,j)+5 -0.5 150 Peak220(i,j)+5 Amp220(i,j)*1.05];
+       
 
         myFx = @(p) sqrt(sum((ydata - gammaVEP_model(xdata,p,nGamma)).^2));
         mdl(i,I,:) = fmincon(myFx,p0,[],[],[],[],lb,ub);
@@ -325,6 +433,23 @@ xlabel('Average of sessions')
 ylabel('Difference between sessions')
 ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.XLim = [min(mean_pLateam_sess), max(mean_pLateam_sess)]; ax.YLim = [diff([max(mean_pLateam_sess) min(mean_pLateam_sess)]),diff([min(mean_pLateam_sess) max(mean_pLateam_sess)])];
 
+
+%% Direct comparison Bland Altman plots to standard ICSEV analysis
+
+subplot(3,4,9)
+diff_n75am_sess = diff(squeeze(amp(:,:,1)),[],2);
+mean_n75am_sess = mean(squeeze(amp(:,:,1)),2);
+hold on
+plot(mean_n75am_sess,diff_n75am_sess,'o','MarkerFaceColor',[0.5 0.5 0.5],'MarkerEdgeColor',[0.5 0.5 0.5],'Color',[0.5 0.5 0.5])
+plot([min(mean_n75am_sess) max(mean_n75am_sess)],[mean(diff_n75am_sess) mean(diff_n75am_sess)],'--k')
+plot([min(mean_n75am_sess) max(mean_n75am_sess)],[mean(diff_n75am_sess)+std(diff_n75am_sess)*1.96 mean(diff_n75am_sess)+std(diff_n75am_sess)*1.96],'--k')
+plot([min(mean_n75am_sess) max(mean_n75am_sess)],[mean(diff_n75am_sess)+std(diff_n75am_sess)*-1.96 mean(diff_n75am_sess)+std(diff_n75am_sess)*-1.96],'--k')
+title('Bland Altman N75 amplitude')
+xlabel('Average of sessions')
+ylabel('Difference between sessions')
+ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.XLim = [min(mean_n75am_sess), max(mean_n75am_sess)]; ax.YLim = [diff([max(mean_n75am_sess) min(mean_n75am_sess)]),diff([min(mean_n75am_sess) max(mean_n75am_sess)])];
+
+
 %% Plot individual VEP to check fits
 
 figure
@@ -345,7 +470,7 @@ for i = 1:size(vep,1)
              ylabel(sprintf('diff peak n75 = %2.2f, p100 = %2.2f, n135 = %2.2f, late = %2.2f',[diff_n75pk_sess(i) diff_p100pk_sess(i) diff_n135pk_sess(i) diff_pLatepk_sess(i)]));
              xlabel(sprintf('diff amplitude n75 = %2.2f, p100 = %2.2f, n135 = %2.2f, late = %2.2f',[diff_n75am_sess(i) diff_p100am_sess(i) diff_n135am_sess(i) diff_pLateam_sess(i)]));
         end
-        ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.YLim = [-40 40]; ax.XLim = [0 time_end];
+        ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.YLim = [-45 45]; ax.XLim = [0 time_end];
     end
     pause
     subplot(1,2,1)
@@ -353,3 +478,5 @@ for i = 1:size(vep,1)
     subplot(1,2,2)
     clf
 end
+
+
