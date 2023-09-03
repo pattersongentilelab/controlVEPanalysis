@@ -65,12 +65,16 @@ r2 = zeros(size(vep,1),2);
 
 Amp75 = zeros(size(vep,1),2);
 Peak75 = zeros(size(vep,1),2);
+Bw75 = zeros(size(vep,1),2);
 Amp100 = zeros(size(vep,1),2);
 Peak100 = zeros(size(vep,1),2);
+Bw100 = zeros(size(vep,1),2);
 Amp135 = zeros(size(vep,1),2);
 Peak135 = zeros(size(vep,1),2);
+Bw135 = zeros(size(vep,1),2);
 Amp220 = zeros(size(vep,1),2);
 Peak220 = zeros(size(vep,1),2);
+Bw220 = zeros(size(vep,1),2);
         
 figure
 for i = 1:size(vep,1)
@@ -167,16 +171,50 @@ for i = 1:size(vep,1)
         
         plot(peak220,amp220,'+g')
         
-        ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.YLim = [-45 45]; ax.XLim = [0 time_end];
+        bw75 = 10^((80-abs(diff([peak75 peak100])))/30);
+
+        if bw75 < 30
+            bw75 = 30;
+        end
+        if bw75 > 80
+            bw75 = 80;
+        end
+        bw100 = 10^((100-(0.5*abs(diff([peak75 peak135]))))/40);
+        if bw100 < 20
+            bw100 = 20;
+        end
+        if bw100 > 80
+            bw100 = 80;
+        end
+        bw135 = 10^((150-(0.5*abs(diff([peak100 peak220]))))/60);
+        if bw135 < 20
+            bw135 = 20;
+        end
+        if bw135 > 80
+            bw135 = 80;
+        end
+        bw220 = 10^((200-abs(diff([peak135 peak220])))/80);
+        if bw220 < 10
+            bw220 = 10;
+        end
+        if bw220 > 80
+            bw220 = 80;
+        end
+        
+        title(sprintf('BW guess 75 = %2.2f, 100 = %2.2f, 135 = %2.2f, 220 = %2.2f',[bw75 bw100 bw135 bw220]));ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.YLim = [-45 45]; ax.XLim = [0 time_end];
         
         Amp75(i,j) = amp75;
         Peak75(i,j) = peak75;
+        Bw75(i,j) = bw75;
         Amp100(i,j) = amp100;
         Peak100(i,j) = peak100;
+        Bw100(i,j) = bw100;
         Amp135(i,j) = amp135;
         Peak135(i,j) = peak135;
+        Bw135(i,j) = bw135;
         Amp220(i,j) = amp220;
         Peak220(i,j) = peak220;
+        Bw220(i,j) = bw220;
     end
     pause(1)
     subplot(1,2,1)
@@ -197,10 +235,9 @@ for I = 1:2 % loop across session
     for i = 1:size(vep,1)
 
         ydata = squeeze(vep(i,I,:))'; % averaged across trials, already corrected for diopsys amplification error above
-        
-        p0 = [40 Peak75(i,j) Amp75(i,j) 50 Peak100(i,j) Amp100(i,j) 50 Peak135(i,j) Amp135(i,j) 30 Peak220(i,j) Amp220(i,j)];
-        lb = [20 Peak75(i,j)-2 Amp75(i,j)*1.05 40 Peak100(i,j)-3 0.5 40 Peak135(i,j)-5 Amp135(i,j)*1.05 10 Peak220(i,j)-5 0.5]; 
-        ub = [150 Peak75(i,j)+2 -0.5 150 Peak100(i,j)+3 Amp100(i,j)*1.05 150 Peak135(i,j)+5 -0.5 150 Peak220(i,j)+5 Amp220(i,j)*1.05];
+        p0 = [Bw75(i,j) Peak75(i,j) Amp75(i,j) Bw100(i,j) Peak100(i,j) Amp100(i,j) Bw135(i,j) Peak135(i,j) Amp135(i,j) Bw220(i,j) Peak220(i,j) Amp220(i,j)];
+        lb = [30 Peak75(i,j)-2 Amp75(i,j)*1.05 20 Peak100(i,j)-3 0.5 15 Peak135(i,j)-5 Amp135(i,j)*1.05 15 Peak220(i,j)-5 0.5]; 
+        ub = [110 Peak75(i,j)+2 -0.5 110 Peak100(i,j)+3 Amp100(i,j)*1.05 110 Peak135(i,j)+5 -0.5 100 Peak220(i,j)+5 Amp220(i,j)*1.05];
        
 
         myFx = @(p) sqrt(sum((ydata - gammaVEP_model(xdata,p,nGamma)).^2));
