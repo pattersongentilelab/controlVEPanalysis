@@ -1,4 +1,5 @@
-% Use single gamma model (can adjust to different number of gammas)
+% Use gamma model with 4 components, more fixed variables to account for the strong 
+% correlation between peak time and preceding bandwidth
 
 
 data_path = getpref('controlVEPanalysis','MindsMatter_DataPath');
@@ -7,7 +8,7 @@ load([data_path '/cleaned_VEP.mat'])
 save_indivVEP_path = '/Users/pattersonc/Library/CloudStorage/OneDrive-Children''sHospitalofPhiladelphia/Research/Minds Matter/Figures/InformedBasisSet/indivVEP_wFits/';
 load([data_path '/neuroActive_meds.mat']) 
 
-%% Select control subjects, first session
+%% Select control subjects, first session, who do not have a history of migraine (med hx1), chronic headache (med hx2), vision or reading therapy (med hx11+12) or strabismus/amblyopia (15 - 18)
 control_subject = find(cleaned_vep_files.subjecttype=='Control');
 
 cleaned_vep = cleaned_vep(control_subject,:);
@@ -61,7 +62,7 @@ r_val300 = zeros(size(vep,1),1);
 
 
 %% Determine fits on individual VEP data
-mdl = zeros(size(vep,1),3*nGamma);
+mdl = zeros(size(vep,1),9);
 gamma = zeros(nGamma,length(mdl_x));
 Gamma = zeros(size(vep,1),nGamma,length(mdl_x));
 yFit = zeros(size(vep));
@@ -212,20 +213,20 @@ for i = 1:size(vep,1)
 
     ydata = vep(i,:); % averaged across trials, already corrected for diopsys amplification error above
     
-    p0 = [Bw75(i,:) Peak75(i,:) Amp75(i,:) Bw100(i,:) Peak100(i,:) Amp100(i,:) Bw135(i,:) Peak135(i,:) Amp135(i,:) Bw220(i,:) Peak220(i,:) Amp220(i,:)];
-    lb = [max([30 Bw75(i,:)-5]) Peak75(i,:)-2 Amp75(i,:)*1.1 max([20 Bw100(i,:)-5]) Peak100(i,:)-3 Amp100(i,:)*0.9 max([15 Bw135(i,:)-5]) Peak135(i,:)-5 Amp135(i,:)*1.1 max([15 Bw220(i,:)-5]) Peak220(i,:)-5 Amp220(i,:)*0.9]; 
-    ub = [min([110 Bw75(i,:)+5]) Peak75(i,:)+2 Amp75(i,:)*0.9 min([110 Bw100(i,:)+5]) Peak100(i,:)+3 Amp100(i,:)*1.1 min([110 Bw135(i,:)+5]) Peak135(i,:)+5 -Amp135(i,:)*0.9 min([100 Bw220(i,:)+5]) Peak220(i,:)+5 Amp220(i,:)*1.1];
+    p0 = [Bw75(i,:) Peak75(i,:) Amp75(i,:) Bw100(i,:) Amp100(i,:) Bw135(i,:) Amp135(i,:) Bw220(i,:) Amp220(i,:)];
+    lb = [max([30 Bw75(i,:)-5]) Peak75(i,:)-2 Amp75(i,:)*1.1 max([20 Bw100(i,:)-5]) Amp100(i,:)*0.9 max([15 Bw135(i,:)-5]) Amp135(i,:)*1.1 max([15 Bw220(i,:)-5]) Amp220(i,:)*0.9]; 
+    ub = [min([110 Bw75(i,:)+5]) Peak75(i,:)+2 Amp75(i,:)*0.9 min([110 Bw100(i,:)+5]) Amp100(i,:)*1.1 min([110 Bw135(i,:)+5]) -Amp135(i,:)*0.9 min([100 Bw220(i,:)+5]) Amp220(i,:)*1.1];
 
-    myFx = @(p) sqrt(sum((ydata - gammaVEP_model(xdata,p,nGamma)).^2));
+    myFx = @(p) sqrt(sum((ydata - gammaVEP_modelReduced(xdata,p)).^2));
     mdl(i,:) = fmincon(myFx,p0,[],[],[],[],lb,ub);
-    [vep_fit,gamma] = gammaVEP_model(mdl_x,mdl(i,:),nGamma);
+    [vep_fit,gamma] = gammaVEP_modelReduced(mdl_x,mdl(i,:));
     Gamma(i,:,:) = gamma;
     
     for z = 1:nGamma
         bandwidth(i,z,:) = gamma_bandwidth(mdl_x,gamma(z,:));
     end
 
-    [yFit(i,:)] = gammaVEP_model(xdata,mdl(i,:),nGamma);
+    [yFit(i,:)] = gammaVEP_modelReduced(xdata,mdl(i,:));
     r = corrcoef(ydata,yFit(i,:));
     r_val(i,:) = r(1,2);
     r = corrcoef(ydata(1,1:307),yFit(i,1:307));
@@ -262,9 +263,6 @@ for i = 1:size(vep,1)
     end
 end
 
-peak = mdl(:,2:3:end);
-amp = mdl(:,3:3:end);
-
     
 % Plot R values
 figure(202)
@@ -277,126 +275,4 @@ ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.XLim = [0 3];
 
 
 
-%% Plot mean VEP and parameters
 
-
-figure(205)
-subplot(1,3,1)
-hold on
-ax = gca; ax.TickDir = 'out'; ax.Box = 'off';
-
-figure(205)
-subplot(1,3,2)
-hold on
-ax = gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.XLim = [0 5];
-
-% plotting parameters
-
-for y = 1:nGamma
-     
-    plot_meanVEP(mdl_x,squeeze(Gamma(:,y,:)),'errorbars','Boot','fig_num',205,'sub_plot',true,'sub_plot_num',[1 3 1],'color_mean',[0.2 0.2 0.2],'color_err',[0.8 0.8 0.8]);
-    
-    figure(205)
-    subplot(1,3,1)
-    bootPk = bootstrp(1000,@mean,peak(:,y));
-    bootPk = sort(bootPk,1);
-    bootAmp = bootstrp(1000,@mean,amp(:,y));
-    bootAmp = sort(bootAmp,1);
-    errorbar(bootPk(500),bootAmp(500),abs(diff(bootAmp([25 500]))),abs(diff(bootAmp([500 975]))),abs(diff(bootPk([25 500]))),abs(diff(bootPk([500 975]))),'o','LineWidth',2,'MarkerFaceColor',gammaC{y},'MarkerEdgeColor','w','Color',gammaC{y})
-    
-    figure(205)
-    subplot(1,3,2)
-    hold on
-    bootBW = bootstrp(1000,@mean,bandwidth(:,y));
-    bootBW = sort(bootBW,1);
-    errorbar(y,bootBW(500),abs(diff(bootBW([25 500]))),abs(diff(bootBW([500 975]))),'o','LineWidth',2,'MarkerFaceColor',gammaC{y},'MarkerEdgeColor','w','Color',gammaC{y})
-
-end
-
-plot_meanVEP(mdl_x,squeeze(sum(Gamma,2)),'errorbars','Boot','fig_num',205,'sub_plot',true,'sub_plot_num',[1 3 3],'color_mean',[0.2 0.2 0.2],'color_err',[0.8 0.8 0.8]);
-ax = gca; ax.TickDir = 'out'; ax.Box = 'off';
-
-fig = figure(205);
-fig_name = '/Users/pattersonc/Library/CloudStorage/OneDrive-Children''sHospitalofPhiladelphia/Research/Minds Matter/Figures/InformedBasisSet/meanParamVEP';
-print(fig,fig_name,'-dpdf','-painters')
-
-
-
-
-%% Plot individual VEP to check fits
-
-figure
-for i = 1:size(vep,1)
-    hold on
-    plot(xdata,vep(i,:),'-','Color',[0.5 0.5 0.5])
-    plot(mdl_x,squeeze(sum(Gamma(i,:,:),2)),'c')
-    for X = 1:nGamma
-         plot(mdl_x,squeeze(Gamma(i,X,:)),['-' gammaC{X}])
-         plot(squeeze(peak(i,X,:)),squeeze(amp(i,X,:)),['+' gammaC{X}])
-         text(peak(i,1),amp(i,1),sprintf('bw = %2.2f \n pt = %2.2f \n amp = %2.2f',[bandwidth(i,1) peak(i,1) amp(i,1)]));
-         text(peak(i,2),amp(i,2),sprintf('bw = %2.2f \n pt = %2.2f \n amp = %2.2f',[bandwidth(i,2) peak(i,2) amp(i,2)]));
-         text(peak(i,3),amp(i,3),sprintf('bw = %2.2f \n pt = %2.2f \n amp = %2.2f',[bandwidth(i,3) peak(i,3) amp(i,3)]));
-         text(peak(i,4),amp(i,4),sprintf('bw = %2.2f \n pt = %2.2f \n amp = %2.2f',[bandwidth(i,4) peak(i,4) amp(i,4)]));
-    end
-    ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.YLim = [-40 40]; ax.XLim = [0 time_end];
-    xlabel(sprintf('subject %2.0f, Fit r = %2.2f',[subject.uniqueID(i) r_val(i,:)]))
-    pause(1)
-    clf
-end
-
-%% Cross correlogram for all parameters
-Y = [bandwidth peak amp];
-[corrParams,pCorrParams] = corrcoef(Y);
-
-
-%% age and VEP
-
-% select only subjects who are not on neuroactive medications and 
-
-% Plot parameters as a function of age
-
-figure(300)
-z = 1;
-for x = 1:3
-    for y = 1:nGamma
-        subplot(3,nGamma,z)
-        hold on
-        ax=gca; ax.TickDir = 'out'; ax.Box = 'off';
-    
-        switch x
-            case 1
-                plot(subject.age_vep,bandwidth(:,y),'o','MarkerFaceColor',gammaC{y},'MarkerEdgeColor','w','Color',gammaC{y})
-                lsline
-                [rr,pp] = corrcoef(subject.age_vep,bandwidth(:,y));
-                rr2 = rr(1,2)^2;
-                title(sprintf('bandwidth %1d',y))
-                ylim([0 max(max(bandwidth))])
-            case 2
-                plot(subject.age_vep,peak(:,y),'o','MarkerFaceColor',gammaC{y},'MarkerEdgeColor','w','Color',gammaC{y})
-                lsline
-                plot([10 20],[lb((y*3)-1) lb((y*3)-1)],'--')
-                plot([10 20],[ub((y*3)-1) ub((y*3)-1)],'--')
-                [rr,pp] = corrcoef(subject.age_vep,peak(:,y));
-                rr2 = rr(1,2)^2;
-                title(sprintf('peak time %1d',y))
-                ylim([0 400])
-            case 3
-                plot(subject.age_vep,abs(amp(:,y)),'o','MarkerFaceColor',gammaC{y},'MarkerEdgeColor','w','Color',gammaC{y})
-                lsline
-                [rr,pp] = corrcoef(subject.age_vep,amp(:,y));
-                rr2 = rr(1,2)^2;
-                title(sprintf('amplitude %1d',y))
-                ylim([0 max(max(amp))])
-        end
-        xlabel(sprintf('r = %2.2f, p = %0.2g',[rr(1,2) pp(1,2)]))
-        z = z+1;
-    end
-end
-
-params_tbl = table([subject.age_vep],'VariableNames',{'age'});
-params_tbl.bw1 = bandwidth(:,1); params_tbl.bw2 = bandwidth(:,2); params_tbl.bw3 = bandwidth(:,3); params_tbl.bw4 = bandwidth(:,4);
-params_tbl.pt1 = peak(:,1); params_tbl.pt2 = peak(:,2); params_tbl.pt3 = peak(:,3); params_tbl.pt4 = peak(:,4);
-params_tbl.amp1 = amp(:,1); params_tbl.amp2 = amp(:,2); params_tbl.amp3 = amp(:,3); params_tbl.amp4 = amp(:,4);
-
-
-mdl_age = fitlm(params_tbl,'age ~ bw1 + bw2 + bw3 + bw4 + pt1 + pt2 + pt3 + pt4 + amp1 + amp2 + amp3 + amp4');

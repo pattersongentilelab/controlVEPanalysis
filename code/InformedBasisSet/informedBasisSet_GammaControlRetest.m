@@ -4,24 +4,22 @@
 data_path = getpref('controlVEPanalysis','MindsMatter_DataPath');
 load([data_path '/randControlTrainTest.mat']) % participants selected for train and test
 load([data_path '/cleaned_VEP.mat'])
-save_indivVEP_path = '/Users/pattersonc/Library/CloudStorage/OneDrive-Children''sHospitalofPhiladelphia/Research/Minds Matter/Figures/InformedBasisSet/indivVEP_wFits/';
-load([data_path '/neuroActive_meds.mat']) 
+saveFig_path = '/Users/pattersonc/Library/CloudStorage/OneDrive-Children''sHospitalofPhiladelphia/Research/Minds Matter/Figures/InformedBasisSet/';
 
 %% split recording into two halves and compare metrics
-control_subject = find(cleaned_vep_files.subjecttype=='Control' & cleaned_vep_files.med_hx___1==0);
+control_subject = find(cleaned_vep_files.subjecttype=='Control');
 cleaned_vep = cleaned_vep(control_subject,:);
 control_vep_subjects = cleaned_vep_files(control_subject,:);
 xdata = cleaned_vep{1,3}.*1000; %convert to ms
 
 % Select first session for each participant
-unique_ID = unique(control_vep_subjects.uniqueID);
-control_vep = cell(length(unique_ID),3);
 vep = zeros(1,2,length(xdata));
 subject = control_vep_subjects(1,:);
+uniqueID = unique(control_vep_subjects.uniqueID);
 
 counter = 1;
-for x = 1:length(unique_ID)
-    temp_loc = find(cell2mat(cleaned_vep(:,1))==unique_ID(x,:));
+for x = 1:length(uniqueID)
+    temp_loc = find(cell2mat(cleaned_vep(:,1))==uniqueID(x));
     subject(x,:) = control_vep_subjects(temp_loc(1),:);
     temp = cleaned_vep{temp_loc(1),4};
     if size(temp,1)>150
@@ -32,6 +30,7 @@ for x = 1:length(unique_ID)
     end
     clear temp_loc
 end
+clear uniqueID
 
 % shift VEP to 0 = mean response
 for x = 1:size(vep)
@@ -41,10 +40,6 @@ for x = 1:size(vep)
     end
 end
 
-%remove participants on neuroactive meds
-temp = setdiff(subject.uniqueID,neuro_active_meds);
-subject = subject(ismember(subject.uniqueID,temp),:);
-vep = vep(ismember(subject.uniqueID,temp),:,:);
 %% Fit gamma model to selected subjects
 % select time window and number of gammas in function
 time_end = 500; % determines the epoch looked at in ms from t = 0 being the alternating checkerboard
@@ -75,16 +70,11 @@ Bw135 = zeros(size(vep,1),2);
 Amp220 = zeros(size(vep,1),2);
 Peak220 = zeros(size(vep,1),2);
 Bw220 = zeros(size(vep,1),2);
-        
-figure
+
 for i = 1:size(vep,1)
     for j = 1:2
-        subplot(1,2,j)
-        hold on
-        plot([0 500],[0 0],'--k')
         ydata = squeeze(vep(i,j,:));
         diffY = diff([min(ydata) max(ydata)]);
-        plot(xdata,ydata,'Color',[0.5 0.5 0.5])
         min_loc = islocalmin(ydata,'MinProminence',diffY*.2);
         min_peak = xdata(min_loc==1);
         max_loc = islocalmax(ydata,'MinProminence',diffY*.2);
@@ -108,7 +98,6 @@ for i = 1:size(vep,1)
             amp75 = -1;
         end
         
-        plot(peak75,amp75,'+b')
         
          x = sum(max_loc(xdata>peak75+5 & xdata<130));
         switch x
@@ -128,7 +117,6 @@ for i = 1:size(vep,1)
         if amp100<1
             amp100 = 1;
         end
-        plot(peak100,amp100,'+r')
        
         x = sum(min_loc(xdata>peak100+5 & xdata<200));
         switch x
@@ -148,7 +136,6 @@ for i = 1:size(vep,1)
         if amp135>-1
             amp135 = -1;
         end
-        plot(peak135,amp135,'+m')
         
        x = sum(max_loc(xdata>peak135+30 & xdata<350));
         switch x
@@ -169,7 +156,6 @@ for i = 1:size(vep,1)
             amp220 = 1;
         end
         
-        plot(peak220,amp220,'+g')
         
         bw75 = 10^((80-abs(diff([peak75 peak100])))/30);
 
@@ -200,9 +186,7 @@ for i = 1:size(vep,1)
         if bw220 > 80
             bw220 = 80;
         end
-        
-        title(sprintf('BW guess 75 = %2.2f, 100 = %2.2f, 135 = %2.2f, 220 = %2.2f',[bw75 bw100 bw135 bw220]));ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.YLim = [-45 45]; ax.XLim = [0 time_end];
-        
+
         Amp75(i,j) = amp75;
         Peak75(i,j) = peak75;
         Bw75(i,j) = bw75;
@@ -216,11 +200,6 @@ for i = 1:size(vep,1)
         Peak220(i,j) = peak220;
         Bw220(i,j) = bw220;
     end
-    pause(1)
-    subplot(1,2,1)
-    clf
-    subplot(1,2,2)
-    clf
 end
 
 %% Determine fits on individual VEP data
@@ -236,8 +215,8 @@ for I = 1:2 % loop across session
 
         ydata = squeeze(vep(i,I,:))'; % averaged across trials, already corrected for diopsys amplification error above
         p0 = [Bw75(i,j) Peak75(i,j) Amp75(i,j) Bw100(i,j) Peak100(i,j) Amp100(i,j) Bw135(i,j) Peak135(i,j) Amp135(i,j) Bw220(i,j) Peak220(i,j) Amp220(i,j)];
-        lb = [30 Peak75(i,j)-2 Amp75(i,j)*1.05 20 Peak100(i,j)-3 0.5 15 Peak135(i,j)-5 Amp135(i,j)*1.05 15 Peak220(i,j)-5 0.5]; 
-        ub = [110 Peak75(i,j)+2 -0.5 110 Peak100(i,j)+3 Amp100(i,j)*1.05 110 Peak135(i,j)+5 -0.5 100 Peak220(i,j)+5 Amp220(i,j)*1.05];
+        lb = [max([30 Bw75(i,j)-5]) Peak75(i,j)-2 Amp75(i,j)*1.1 max([20 Bw100(i,j)-5]) Peak100(i,j)-3 Amp100(i,j)*0.9 max([15 Bw135(i,j)-5]) Peak135(i,j)-5 Amp135(i,j)*1.1 max([15 Bw220(i,j)-5]) Peak220(i,j)-5 Amp220(i,j)*0.9]; 
+        ub = [min([110 Bw75(i,j)+5]) Peak75(i,j)+2 Amp75(i,j)*0.9 min([110 Bw100(i,j)+5]) Peak100(i,j)+3 Amp100(i,j)*1.1 min([110 Bw135(i,j)+5]) Peak135(i,j)+5 -Amp135(i,j)*0.9 min([100 Bw220(i,j)+5]) Peak220(i,j)+5 Amp220(i,j)*1.1];
        
 
         myFx = @(p) sqrt(sum((ydata - gammaVEP_model(xdata,p,nGamma)).^2));
@@ -268,7 +247,7 @@ amp = mdl(:,:,3:3:end);
 %% Compare session 1 and session 2 parameters
 
 % Informed basis set
-figure(300)
+fig = figure(300);
 z = 1;
 for x = 1:3
     for y = 1:nGamma
@@ -278,13 +257,14 @@ for x = 1:3
     
         switch x
             case 1
-                plot(squeeze(bandwidth(:,1,y)),squeeze(bandwidth(:,2,y)),'o','MarkerFaceColor',gammaC{y},'MarkerEdgeColor',gammaC{y},'Color',gammaC{y})
+                plot(squeeze(bandwidth(:,1,y)),squeeze(bandwidth(:,2,y)),'o','MarkerFaceColor',gammaC{y},'MarkerEdgeColor','w','Color',gammaC{y})
                 plot([0 120],[0 120],'--')
                 [rr,pp] = corrcoef(squeeze(bandwidth(:,1,y)),squeeze(bandwidth(:,2,y)));
                 title(sprintf('bandwidth %1d',y))
                 ylim([0 200])
+                xlim([0 200])
             case 2
-                plot(squeeze(peak(:,1,y)),squeeze(peak(:,2,y)),'o','MarkerFaceColor',gammaC{y},'MarkerEdgeColor',gammaC{y},'Color',gammaC{y})
+                plot(squeeze(peak(:,1,y)),squeeze(peak(:,2,y)),'o','MarkerFaceColor',gammaC{y},'MarkerEdgeColor','w','Color',gammaC{y})
                 plot([0 400],[0 400],'--')
                 plot([10 20],[lb((y*3)-1) lb((y*3)-1)],'--')
                 plot([10 20],[ub((y*3)-1) ub((y*3)-1)],'--')
@@ -293,7 +273,7 @@ for x = 1:3
                 ylim([0 400])
                 xlim([0 400])
             case 3
-                plot(squeeze(abs(amp(:,1,y))),squeeze(abs(amp(:,2,y))),'o','MarkerFaceColor',gammaC{y},'MarkerEdgeColor',gammaC{y},'Color',gammaC{y})
+                plot(squeeze(abs(amp(:,1,y))),squeeze(abs(amp(:,2,y))),'o','MarkerFaceColor',gammaC{y},'MarkerEdgeColor','w','Color',gammaC{y})
                 plot([0 max(max(max(amp)))],[0 max(max(max(amp)))],'--')
                 [rr,pp] = corrcoef(squeeze(abs(amp(:,1,y))),squeeze(abs(amp(:,2,y))));
                 title(sprintf('amplitude %1d',y))
@@ -305,171 +285,199 @@ for x = 1:3
     end
 end
 
-
+fig_name = [saveFig_path 'retestParamsCorr'];
+print(fig,fig_name,'-dpdf','-painters')
 
 %% Bland-Altman plot
 
 % Informed basis set
 
-figure(302)
+fig = figure(302);
 subplot(3,4,1)
 diff_n75bw_sess = diff(squeeze(bandwidth(:,:,1)),[],2);
 mean_n75bw_sess = mean(squeeze(bandwidth(:,:,1)),2);
 hold on
-plot(mean_n75bw_sess,diff_n75bw_sess,'o','MarkerFaceColor',[0.5 0.5 0.5],'MarkerEdgeColor',[0.5 0.5 0.5],'Color',[0.5 0.5 0.5])
+plot(mean_n75bw_sess,diff_n75bw_sess,'o','MarkerFaceColor','b','MarkerEdgeColor','w','Color','b')
 plot([min(mean_n75bw_sess) max(mean_n75bw_sess)],[mean(diff_n75bw_sess) mean(diff_n75bw_sess)],'--k')
 plot([min(mean_n75bw_sess) max(mean_n75bw_sess)],[mean(diff_n75bw_sess)+std(diff_n75bw_sess)*1.96 mean(diff_n75bw_sess)+std(diff_n75bw_sess)*1.96],'--k')
 plot([min(mean_n75bw_sess) max(mean_n75bw_sess)],[mean(diff_n75bw_sess)+std(diff_n75bw_sess)*-1.96 mean(diff_n75bw_sess)+std(diff_n75bw_sess)*-1.96],'--k')
+text(max(mean_n75bw_sess)-2,mean(diff_n75bw_sess)+std(diff_n75bw_sess)*-1.96-2,sprintf('%2.1f',mean(diff_n75bw_sess)+std(diff_n75bw_sess)*-1.96));
+text(max(mean_n75bw_sess)-2,mean(diff_n75bw_sess)+std(diff_n75bw_sess)*1.96+2,sprintf('%2.1f',mean(diff_n75bw_sess)+std(diff_n75bw_sess)*-1.96));
 title('Bland Altman N75 bandwidth')
 xlabel('Average of sessions')
 ylabel('Difference between sessions')
-ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.XLim = [min(mean_n75bw_sess), max(mean_n75bw_sess)]; ax.YLim = [diff([max(mean_n75bw_sess) min(mean_n75bw_sess)]),diff([min(mean_n75bw_sess) max(mean_n75bw_sess)])];
+ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.XLim = [min(mean_n75bw_sess), max(mean_n75bw_sess)]; ax.YLim = [-20,20];
 
 subplot(3,4,2)
 diff_p100bw_sess = diff(squeeze(bandwidth(:,:,2)),[],2);
 mean_p100bw_sess = mean(squeeze(bandwidth(:,:,2)),2);
 hold on
-plot(mean_p100bw_sess,diff_p100bw_sess,'o','MarkerFaceColor',[0.5 0.5 0.5],'MarkerEdgeColor',[0.5 0.5 0.5],'Color',[0.5 0.5 0.5])
+plot(mean_p100bw_sess,diff_p100bw_sess,'o','MarkerFaceColor','r','MarkerEdgeColor','w','Color','r')
 plot([min(mean_p100bw_sess) max(mean_p100bw_sess)],[mean(diff_p100bw_sess) mean(diff_p100bw_sess)],'--k')
 plot([min(mean_p100bw_sess) max(mean_p100bw_sess)],[mean(diff_p100bw_sess)+std(diff_p100bw_sess)*1.96 mean(diff_p100bw_sess)+std(diff_p100bw_sess)*1.96],'--k')
 plot([min(mean_p100bw_sess) max(mean_p100bw_sess)],[mean(diff_p100bw_sess)+std(diff_p100bw_sess)*-1.96 mean(diff_p100bw_sess)+std(diff_p100bw_sess)*-1.96],'--k')
+text(max(mean_p100bw_sess)-2,mean(diff_p100bw_sess)+std(diff_p100bw_sess)*-1.96-2,sprintf('%2.1f',mean(diff_p100bw_sess)+std(diff_p100bw_sess)*-1.96));
+text(max(mean_p100bw_sess)-2,mean(diff_p100bw_sess)+std(diff_p100bw_sess)*1.96+2,sprintf('%2.1f',mean(diff_p100bw_sess)+std(diff_p100bw_sess)*1.96));
+
 title('Bland Altman P100 bandwidth')
 xlabel('Average of sessions')
 ylabel('Difference between sessions')
-ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.XLim = [min(mean_p100bw_sess), max(mean_p100bw_sess)]; ax.YLim = [diff([max(mean_p100bw_sess) min(mean_p100bw_sess)]),diff([min(mean_p100bw_sess) max(mean_p100bw_sess)])];
+ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.XLim = [min(mean_p100bw_sess), max(mean_p100bw_sess)]; ax.YLim = [-20,20];
 
 subplot(3,4,3)
 diff_n135bw_sess = diff(squeeze(bandwidth(:,:,3)),[],2);
 mean_n135bw_sess = mean(squeeze(bandwidth(:,:,3)),2);
 hold on
-plot(mean_n135bw_sess,diff_n135bw_sess,'o','MarkerFaceColor',[0.5 0.5 0.5],'MarkerEdgeColor',[0.5 0.5 0.5],'Color',[0.5 0.5 0.5])
+plot(mean_n135bw_sess,diff_n135bw_sess,'o','MarkerFaceColor','m','MarkerEdgeColor','w','Color','m')
 plot([min(mean_n135bw_sess) max(mean_n135bw_sess)],[mean(diff_n135bw_sess) mean(diff_n135bw_sess)],'--k')
 plot([min(mean_n135bw_sess) max(mean_n135bw_sess)],[mean(diff_n135bw_sess)+std(diff_n135bw_sess)*1.96 mean(diff_n135bw_sess)+std(diff_n135bw_sess)*1.96],'--k')
 plot([min(mean_n135bw_sess) max(mean_n135bw_sess)],[mean(diff_n135bw_sess)+std(diff_n135bw_sess)*-1.96 mean(diff_n135bw_sess)+std(diff_n135bw_sess)*-1.96],'--k')
+text(max(mean_n135bw_sess)-2,mean(diff_n135bw_sess)+std(diff_n135bw_sess)*-1.96-2,sprintf('%2.1f',mean(diff_n135bw_sess)+std(diff_n135bw_sess)*-1.96));
+text(max(mean_n135bw_sess)-2,mean(diff_n135bw_sess)+std(diff_n135bw_sess)*1.96+2,sprintf('%2.1f',mean(diff_n135bw_sess)+std(diff_n135bw_sess)*1.96));
 title('Bland Altman N135 bandwidth')
 xlabel('Average of sessions')
 ylabel('Difference between sessions')
-ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.XLim = [min(mean_n135bw_sess), max(mean_n135bw_sess)]; ax.YLim = [diff([max(mean_n135bw_sess) min(mean_n135bw_sess)]),diff([min(mean_n135bw_sess) max(mean_n135bw_sess)])];
+ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.XLim = [min(mean_n135bw_sess), max(mean_n135bw_sess)]; ax.YLim = [-20,20];
 
 subplot(3,4,4)
 diff_pLatebw_sess = diff(squeeze(bandwidth(:,:,4)),[],2);
 mean_pLatebw_sess = mean(squeeze(bandwidth(:,:,4)),2);
 hold on
-plot(mean_pLatebw_sess,diff_pLatebw_sess,'o','MarkerFaceColor',[0.5 0.5 0.5],'MarkerEdgeColor',[0.5 0.5 0.5],'Color',[0.5 0.5 0.5])
+plot(mean_pLatebw_sess,diff_pLatebw_sess,'o','MarkerFaceColor','g','MarkerEdgeColor','w','Color','g')
 plot([min(mean_pLatebw_sess) max(mean_pLatebw_sess)],[mean(diff_pLatebw_sess) mean(diff_pLatebw_sess)],'--k')
 plot([min(mean_pLatebw_sess) max(mean_pLatebw_sess)],[mean(diff_pLatebw_sess)+std(diff_pLatebw_sess)*1.96 mean(diff_pLatebw_sess)+std(diff_pLatebw_sess)*1.96],'--k')
 plot([min(mean_pLatebw_sess) max(mean_pLatebw_sess)],[std(diff_pLatebw_sess)*-1.96 std(diff_pLatebw_sess)*-1.96],'--k')
+text(max(mean_pLatebw_sess)-2,mean(diff_pLatebw_sess)+std(diff_pLatebw_sess)*-1.96-2,sprintf('%2.1f',mean(diff_pLatebw_sess)+std(diff_pLatebw_sess)*-1.96));
+text(max(mean_pLatebw_sess)-2,mean(diff_pLatebw_sess)+std(diff_pLatebw_sess)*1.96+2,sprintf('%2.1f',mean(diff_pLatebw_sess)+std(diff_pLatebw_sess)*1.96));
 title('Bland Altman Late bandwidth')
 xlabel('Average of sessions')
 ylabel('Difference between sessions')
-ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.XLim = [min(mean_pLatebw_sess), max(mean_pLatebw_sess)]; ax.YLim = [diff([max(mean_pLatebw_sess) min(mean_pLatebw_sess)]),diff([min(mean_pLatebw_sess) max(mean_pLatebw_sess)])];
+ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.XLim = [min(mean_pLatebw_sess), max(mean_pLatebw_sess)]; ax.YLim = [-20,20];
 
 
 subplot(3,4,5)
 diff_n75pk_sess = diff(squeeze(peak(:,:,1)),[],2);
 mean_n75pk_sess = mean(squeeze(peak(:,:,1)),2);
 hold on
-plot(mean_n75pk_sess,diff_n75pk_sess,'o','MarkerFaceColor',[0.5 0.5 0.5],'MarkerEdgeColor',[0.5 0.5 0.5],'Color',[0.5 0.5 0.5])
+plot(mean_n75pk_sess,diff_n75pk_sess,'o','MarkerFaceColor','b','MarkerEdgeColor','w','Color','b')
 plot([min(mean_n75pk_sess) max(mean_n75pk_sess)],[mean(diff_n75pk_sess) mean(diff_n75pk_sess)],'--k')
 plot([min(mean_n75pk_sess) max(mean_n75pk_sess)],[mean(diff_n75pk_sess)+std(diff_n75pk_sess)*1.96 mean(diff_n75pk_sess)+std(diff_n75pk_sess)*1.96],'--k')
 plot([min(mean_n75pk_sess) max(mean_n75pk_sess)],[mean(diff_n75pk_sess)+std(diff_n75pk_sess)*-1.96 mean(diff_n75pk_sess)+std(diff_n75pk_sess)*-1.96],'--k')
+text(max(mean_n75pk_sess)-2,mean(diff_n75pk_sess)+std(diff_n75pk_sess)*-1.96-2,sprintf('%2.1f',mean(diff_n75pk_sess)+std(diff_n75pk_sess)*-1.96));
+text(max(mean_n75pk_sess)-2,mean(diff_n75pk_sess)+std(diff_n75pk_sess)*1.96+2,sprintf('%2.1f',mean(diff_n75pk_sess)+std(diff_n75pk_sess)*1.96));
 title('Bland Altman N75 peak')
 xlabel('Average of sessions')
 ylabel('Difference between sessions')
-ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.XLim = [min(mean_n75pk_sess), max(mean_n75pk_sess)]; ax.YLim = [diff([max(mean_n75pk_sess) min(mean_n75pk_sess)]),diff([min(mean_n75pk_sess) max(mean_n75pk_sess)])];
+ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.XLim = [min(mean_n75pk_sess), max(mean_n75pk_sess)]; ax.YLim = [-12,12];
 
 subplot(3,4,6)
 diff_p100pk_sess = diff(squeeze(peak(:,:,2)),[],2);
 mean_p100pk_sess = mean(squeeze(peak(:,:,2)),2);
 hold on
-plot(mean_p100pk_sess,diff_p100pk_sess,'o','MarkerFaceColor',[0.5 0.5 0.5],'MarkerEdgeColor',[0.5 0.5 0.5],'Color',[0.5 0.5 0.5])
+plot(mean_p100pk_sess,diff_p100pk_sess,'o','MarkerFaceColor','r','MarkerEdgeColor','w','Color','r')
 plot([min(mean_p100pk_sess) max(mean_p100pk_sess)],[mean(diff_p100pk_sess) mean(diff_p100pk_sess)],'--k')
 plot([min(mean_p100pk_sess) max(mean_p100pk_sess)],[mean(diff_p100pk_sess)+std(diff_p100pk_sess)*1.96 mean(diff_p100pk_sess)+std(diff_p100pk_sess)*1.96],'--k')
 plot([min(mean_p100pk_sess) max(mean_p100pk_sess)],[mean(diff_p100pk_sess)+std(diff_p100pk_sess)*-1.96 mean(diff_p100pk_sess)+std(diff_p100pk_sess)*-1.96],'--k')
+text(max(mean_p100pk_sess)-2,mean(diff_p100pk_sess)+std(diff_p100pk_sess)*-1.96-2,sprintf('%2.1f',mean(diff_p100pk_sess)+std(diff_p100pk_sess)*-1.96));
+text(max(mean_p100pk_sess)-2,mean(diff_p100pk_sess)+std(diff_p100pk_sess)*1.96+2,sprintf('%2.1f',mean(diff_p100pk_sess)+std(diff_p100pk_sess)*1.96));
 title('Bland Altman P100 peak')
 xlabel('Average of sessions')
 ylabel('Difference between sessions')
-ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.XLim = [min(mean_p100pk_sess), max(mean_p100pk_sess)]; ax.YLim = [diff([max(mean_p100pk_sess) min(mean_p100pk_sess)]),diff([min(mean_p100pk_sess) max(mean_p100pk_sess)])];
+ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.XLim = [min(mean_p100pk_sess), max(mean_p100pk_sess)]; ax.YLim = [-12,12];
 
 subplot(3,4,7)
 diff_n135pk_sess = diff(squeeze(peak(:,:,3)),[],2);
 mean_n135pk_sess = mean(squeeze(peak(:,:,3)),2);
 hold on
-plot(mean_n135pk_sess,diff_n135pk_sess,'o','MarkerFaceColor',[0.5 0.5 0.5],'MarkerEdgeColor',[0.5 0.5 0.5],'Color',[0.5 0.5 0.5])
+plot(mean_n135pk_sess,diff_n135pk_sess,'o','MarkerFaceColor','m','MarkerEdgeColor','w','Color','m')
 plot([min(mean_n135pk_sess) max(mean_n135pk_sess)],[mean(diff_n135pk_sess) mean(diff_n135pk_sess)],'--k')
 plot([min(mean_n135pk_sess) max(mean_n135pk_sess)],[mean(diff_n135pk_sess)+std(diff_n135pk_sess)*1.96 mean(diff_n135pk_sess)+std(diff_n135pk_sess)*1.96],'--k')
 plot([min(mean_n135pk_sess) max(mean_n135pk_sess)],[mean(diff_n135pk_sess)+std(diff_n135pk_sess)*-1.96 mean(diff_n135pk_sess)+std(diff_n135pk_sess)*-1.96],'--k')
+text(max(mean_n135pk_sess)-2,mean(diff_n135pk_sess)+std(diff_n135pk_sess)*-1.96-2,sprintf('%2.1f',mean(diff_n135pk_sess)+std(diff_n135pk_sess)*-1.96));
+text(max(mean_n135pk_sess)-2,mean(diff_n135pk_sess)+std(diff_n135pk_sess)*1.96+2,sprintf('%2.1f',mean(diff_n135pk_sess)+std(diff_n135pk_sess)*1.96));
 title('Bland Altman N135 peak')
 xlabel('Average of sessions')
 ylabel('Difference between sessions')
-ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.XLim = [min(mean_n135pk_sess), max(mean_n135pk_sess)]; ax.YLim = [diff([max(mean_n135pk_sess) min(mean_n135pk_sess)]),diff([min(mean_n135pk_sess) max(mean_n135pk_sess)])];
+ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.XLim = [min(mean_n135pk_sess), max(mean_n135pk_sess)]; ax.YLim = [-12,12];
 
 subplot(3,4,8)
 diff_pLatepk_sess = diff(squeeze(peak(:,:,4)),[],2);
 mean_pLatepk_sess = mean(squeeze(peak(:,:,4)),2);
 hold on
-plot(mean_pLatepk_sess,diff_pLatepk_sess,'o','MarkerFaceColor',[0.5 0.5 0.5],'MarkerEdgeColor',[0.5 0.5 0.5],'Color',[0.5 0.5 0.5])
+plot(mean_pLatepk_sess,diff_pLatepk_sess,'o','MarkerFaceColor','g','MarkerEdgeColor','w','Color','g')
 plot([min(mean_pLatepk_sess) max(mean_pLatepk_sess)],[mean(diff_pLatepk_sess) mean(diff_pLatepk_sess)],'--k')
 plot([min(mean_pLatepk_sess) max(mean_pLatepk_sess)],[mean(diff_pLatepk_sess)+std(diff_pLatepk_sess)*1.96 mean(diff_pLatepk_sess)+std(diff_pLatepk_sess)*1.96],'--k')
 plot([min(mean_pLatepk_sess) max(mean_pLatepk_sess)],[mean(diff_pLatepk_sess)+std(diff_pLatepk_sess)*-1.96 mean(diff_pLatepk_sess)+std(diff_pLatepk_sess)*-1.96],'--k')
+text(max(mean_pLatepk_sess)-2,mean(diff_pLatepk_sess)+std(diff_pLatepk_sess)*-1.96-2,sprintf('%2.1f',mean(diff_pLatepk_sess)+std(diff_pLatepk_sess)*-1.96));
+text(max(mean_pLatepk_sess)-2,mean(diff_pLatepk_sess)+std(diff_pLatepk_sess)*1.96+2,sprintf('%2.1f',mean(diff_pLatepk_sess)+std(diff_pLatepk_sess)*1.96));
 title('Bland Altman Late peak')
 xlabel('Average of sessions')
 ylabel('Difference between sessions')
-ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.XLim = [min(mean_pLatepk_sess), max(mean_pLatepk_sess)]; ax.YLim = [diff([max(mean_pLatepk_sess) min(mean_pLatepk_sess)]),diff([min(mean_pLatepk_sess) max(mean_pLatepk_sess)])];
+ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.XLim = [min(mean_pLatepk_sess), max(mean_pLatepk_sess)]; ax.YLim = [-12,12];
 
 
 subplot(3,4,9)
 diff_n75am_sess = diff(squeeze(amp(:,:,1)),[],2);
 mean_n75am_sess = mean(squeeze(amp(:,:,1)),2);
 hold on
-plot(mean_n75am_sess,diff_n75am_sess,'o','MarkerFaceColor',[0.5 0.5 0.5],'MarkerEdgeColor',[0.5 0.5 0.5],'Color',[0.5 0.5 0.5])
+plot(mean_n75am_sess,diff_n75am_sess,'o','MarkerFaceColor','b','MarkerEdgeColor','w','Color','b')
 plot([min(mean_n75am_sess) max(mean_n75am_sess)],[mean(diff_n75am_sess) mean(diff_n75am_sess)],'--k')
 plot([min(mean_n75am_sess) max(mean_n75am_sess)],[mean(diff_n75am_sess)+std(diff_n75am_sess)*1.96 mean(diff_n75am_sess)+std(diff_n75am_sess)*1.96],'--k')
 plot([min(mean_n75am_sess) max(mean_n75am_sess)],[mean(diff_n75am_sess)+std(diff_n75am_sess)*-1.96 mean(diff_n75am_sess)+std(diff_n75am_sess)*-1.96],'--k')
+text(max(mean_n75am_sess)-2,mean(diff_n75am_sess)+std(diff_n75am_sess)*-1.96-2,sprintf('%2.1f',mean(diff_n75am_sess)+std(diff_n75am_sess)*-1.96));
+text(max(mean_n75am_sess)-2,mean(diff_n75am_sess)+std(diff_n75am_sess)*1.96+2,sprintf('%2.1f',mean(diff_n75am_sess)+std(diff_n75am_sess)*1.96));
 title('Bland Altman N75 amplitude')
 xlabel('Average of sessions')
 ylabel('Difference between sessions')
-ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.XLim = [min(mean_n75am_sess), max(mean_n75am_sess)]; ax.YLim = [diff([max(mean_n75am_sess) min(mean_n75am_sess)]),diff([min(mean_n75am_sess) max(mean_n75am_sess)])];
+ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.XLim = [min(mean_n75am_sess), max(mean_n75am_sess)]; ax.YLim = [-6,6];
 
 subplot(3,4,10)
 diff_p100am_sess = diff(squeeze(amp(:,:,2)),[],2);
 mean_p100am_sess = mean(squeeze(amp(:,:,2)),2);
 hold on
-plot(mean_p100am_sess,diff_p100am_sess,'o','MarkerFaceColor',[0.5 0.5 0.5],'MarkerEdgeColor',[0.5 0.5 0.5],'Color',[0.5 0.5 0.5])
+plot(mean_p100am_sess,diff_p100am_sess,'o','MarkerFaceColor','r','MarkerEdgeColor','w','Color','r')
 plot([min(mean_p100am_sess) max(mean_p100am_sess)],[mean(diff_p100am_sess) mean(diff_p100am_sess)],'--k')
 plot([min(mean_p100am_sess) max(mean_p100am_sess)],[mean(diff_p100am_sess)+std(diff_p100am_sess)*1.96 mean(diff_p100am_sess)+std(diff_p100am_sess)*1.96],'--k')
 plot([min(mean_p100am_sess) max(mean_p100am_sess)],[mean(diff_p100am_sess)+std(diff_p100am_sess)*-1.96 mean(diff_p100am_sess)+std(diff_p100am_sess)*-1.96],'--k')
+text(max(mean_p100am_sess)-2,mean(diff_p100am_sess)+std(diff_p100am_sess)*-1.96-2,sprintf('%2.1f',mean(diff_p100am_sess)+std(diff_p100am_sess)*-1.96));
+text(max(mean_p100am_sess)-2,mean(diff_p100am_sess)+std(diff_p100am_sess)*-1.96+2,sprintf('%2.1f',mean(diff_p100am_sess)+std(diff_p100am_sess)*1.96));
 title('Bland Altman P100 amplitude')
 xlabel('Average of sessions')
 ylabel('Difference between sessions')
-ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.XLim = [min(mean_p100am_sess), max(mean_p100am_sess)]; ax.YLim = [diff([max(mean_p100am_sess) min(mean_p100am_sess)]),diff([min(mean_p100am_sess) max(mean_p100am_sess)])];
+ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.XLim = [min(mean_p100am_sess), max(mean_p100am_sess)]; ax.YLim = [-6,6];
 
 subplot(3,4,11)
 diff_n135am_sess = diff(squeeze(amp(:,:,3)),[],2);
 mean_n135am_sess = mean(squeeze(amp(:,:,3)),2);
 hold on
-plot(mean_n135am_sess,diff_n135am_sess,'o','MarkerFaceColor',[0.5 0.5 0.5],'MarkerEdgeColor',[0.5 0.5 0.5],'Color',[0.5 0.5 0.5])
+plot(mean_n135am_sess,diff_n135am_sess,'o','MarkerFaceColor','m','MarkerEdgeColor','w','Color','m')
 plot([min(mean_n135am_sess) max(mean_n135am_sess)],[mean(diff_n135am_sess) mean(diff_n135am_sess)],'--k')
 plot([min(mean_n135am_sess) max(mean_n135am_sess)],[mean(diff_n135am_sess)+std(diff_n135am_sess)*1.96 mean(diff_n135am_sess)+std(diff_n135am_sess)*1.96],'--k')
 plot([min(mean_n135am_sess) max(mean_n135am_sess)],[mean(diff_n135am_sess)+std(diff_n135am_sess)*-1.96 mean(diff_n135am_sess)+std(diff_n135am_sess)*-1.96],'--k')
+text(max(mean_n135am_sess)-2,mean(diff_n135am_sess)+std(diff_n135am_sess)*-1.96-2,sprintf('%2.1f',mean(diff_n135am_sess)+std(diff_n135am_sess)*-1.96));
+text(max(mean_n135am_sess)-2,mean(diff_n135am_sess)+std(diff_n135am_sess)*1.96+2,sprintf('%2.1f',mean(diff_n135am_sess)+std(diff_n135am_sess)*1.96));
 title('Bland Altman N135 amplitude')
 xlabel('Average of sessions')
 ylabel('Difference between sessions')
-ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.XLim = [min(mean_n135am_sess), max(mean_n135am_sess)]; ax.YLim = [diff([max(mean_n135am_sess) min(mean_n135am_sess)]),diff([min(mean_n135am_sess) max(mean_n135am_sess)])];
+ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.XLim = [min(mean_n135am_sess), max(mean_n135am_sess)]; ax.YLim = [-6,6];
 
 subplot(3,4,12)
 diff_pLateam_sess = diff(squeeze(amp(:,:,4)),[],2);
 mean_pLateam_sess = mean(squeeze(amp(:,:,4)),2);
 hold on
-plot(mean_pLateam_sess,diff_pLateam_sess,'o','MarkerFaceColor',[0.5 0.5 0.5],'MarkerEdgeColor',[0.5 0.5 0.5],'Color',[0.5 0.5 0.5])
+plot(mean_pLateam_sess,diff_pLateam_sess,'o','MarkerFaceColor','g','MarkerEdgeColor','w','Color','g')
 plot([min(mean_pLateam_sess) max(mean_pLateam_sess)],[mean(diff_pLateam_sess) mean(diff_pLateam_sess)],'--k')
 plot([min(mean_pLateam_sess) max(mean_pLateam_sess)],[mean(diff_pLateam_sess)+std(diff_pLateam_sess)*1.96 mean(diff_pLateam_sess)+std(diff_pLateam_sess)*1.96],'--k')
 plot([min(mean_pLateam_sess) max(mean_pLateam_sess)],[mean(diff_pLateam_sess)+std(diff_pLateam_sess)*-1.96 mean(diff_pLateam_sess)+std(diff_pLateam_sess)*-1.96],'--k')
+text(max(mean_pLateam_sess)-2,mean(diff_pLateam_sess)+std(diff_pLateam_sess)*-1.96-2,sprintf('%2.1f',mean(diff_pLateam_sess)+std(diff_pLateam_sess)*-1.96));
+text(max(mean_pLateam_sess)-2,mean(diff_pLateam_sess)+std(diff_pLateam_sess)*1.96+2,sprintf('%2.1f',mean(diff_pLateam_sess)+std(diff_pLateam_sess)*1.96));
 title('Bland Altman Late amplitude')
 xlabel('Average of sessions')
 ylabel('Difference between sessions')
-ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.XLim = [min(mean_pLateam_sess), max(mean_pLateam_sess)]; ax.YLim = [diff([max(mean_pLateam_sess) min(mean_pLateam_sess)]),diff([min(mean_pLateam_sess) max(mean_pLateam_sess)])];
+ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.XLim = [min(mean_pLateam_sess), max(mean_pLateam_sess)]; ax.YLim = [-6,6];
 
+fig_name = [saveFig_path 'retestParamsBlandAltman'];
+print(fig,fig_name,'-dpdf','-painters')
 
 %% Direct comparison Bland Altman plots to standard ICSEV analysis
 
@@ -501,19 +509,24 @@ for i = 1:size(vep,1)
              text(squeeze(peak(i,j,1)),squeeze(amp(i,j,1)),sprintf('bw = %2.2f \n pt = %2.2f \n amp = %2.2f',[squeeze(bandwidth(i,j,1)) squeeze(peak(i,j,1)) squeeze(amp(i,j,1))]));
              text(squeeze(peak(i,j,2)),squeeze(amp(i,j,2)),sprintf('bw = %2.2f \n pt = %2.2f \n amp = %2.2f',[squeeze(bandwidth(i,j,2)) squeeze(peak(i,j,2)) squeeze(amp(i,j,2))]));
              text(squeeze(peak(i,j,3)),squeeze(amp(i,j,3)),sprintf('bw = %2.2f \n pt = %2.2f \n amp = %2.2f',[squeeze(bandwidth(i,j,3)) squeeze(peak(i,j,3)) squeeze(amp(i,j,3))]));
-             text(squeeze(peak(i,j,4)),squeeze(amp(i,j,4)),sprintf('bw = %2.2f \n pt = %2.2f \n amp = %2.2f',[squeeze(bandwidth(i,j,4)) squeeze(peak(i,j,4)) squeeze(amp(i,j,4))]));
-
-             title(sprintf('diff bw n75 = %2.2f, p100 = %2.2f, n135 = %2.2f, late = %2.2f',[diff_n75bw_sess(i) diff_p100bw_sess(i) diff_n135bw_sess(i) diff_pLatebw_sess(i)]));
-             ylabel(sprintf('diff peak n75 = %2.2f, p100 = %2.2f, n135 = %2.2f, late = %2.2f',[diff_n75pk_sess(i) diff_p100pk_sess(i) diff_n135pk_sess(i) diff_pLatepk_sess(i)]));
-             xlabel(sprintf('diff amplitude n75 = %2.2f, p100 = %2.2f, n135 = %2.2f, late = %2.2f',[diff_n75am_sess(i) diff_p100am_sess(i) diff_n135am_sess(i) diff_pLateam_sess(i)]));
+             text(squeeze(peak(i,j,4)),squeeze(amp(i,j,4)),sprintf('bw = %2.2f \n pt = %2.2f \n amp = %2.2f',[squeeze(bandwidth(i,j,4)) squeeze(peak(i,j,4)) squeeze(amp(i,j,4))]));        
         end
+        
+        plot(Peak75(i,j),Amp75(i,j),'+b')
+        text(Peak75(i,j)+0.1,Amp75(i,j)+0.1,sprintf('bw guess = %2.2f',Bw75(i,j)));
+        plot(Peak100(i,j),Amp100(i,j),'+r')
+        text(Peak100(i,j)+0.1,Amp100(i,j)+0.1,sprintf('bw guess = %2.2f',Bw100(i,j)));
+        plot(Peak135(i,j),Amp135(i,j),'+m')
+        text(Peak135(i,j)+0.1,Amp135(i,j)+0.1,sprintf('bw guess = %2.2f',Bw135(i,j)));
+        plot(Peak220(i,j),Amp220(i,j),'+g')
+        text(Peak220(i,j)+0.1,Amp220(i,j)+0.1,sprintf('bw guess = %2.2f',Bw220(i,j)));
+        title(sprintf('diff bw n75 = %2.2f, p100 = %2.2f, n135 = %2.2f, late = %2.2f',[diff_n75bw_sess(i) diff_p100bw_sess(i) diff_n135bw_sess(i) diff_pLatebw_sess(i)]));   
+        xlabel(sprintf('subject %2.0f, Fit r = %2.2f',[i r_val(i,j)]))
         ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.YLim = [-45 45]; ax.XLim = [0 time_end];
     end
-    pause
+    pause(1)
     subplot(1,2,1)
     clf
     subplot(1,2,2)
     clf
 end
-
-
