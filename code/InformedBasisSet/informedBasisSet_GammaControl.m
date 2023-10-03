@@ -348,6 +348,86 @@ end
 Y = [bandwidth peak amp];
 [corrParams,pCorrParams] = corrcoef(Y);
 
+%% comparison of peak analysis (diopsys) to difference-of-gammas model
+
+% Compile diopsys measurements
+load([data_path '/VEPsubject_masterList111220.mat'])
+
+diopsys = subject(:,1);
+diopsys.n75_pt = zeros(height(diopsys),1);
+diopsys.p100_pt = zeros(height(diopsys),1);
+diopsys.delta_amp = zeros(height(diopsys),1);
+diopsys.sessNum = zeros(height(diopsys),1);
+
+for x = 1:height(diopsys)
+    temp = VEPsubject_data(VEPsubject_data.uniqueID==diopsys.uniqueID(x) & VEPsubject_data.REDCap_testdate==subject.REDCap_testdate(x),:);
+    temp = temp(temp.Delta_Amp~=0 & temp.Left_Cursor_Lat~=0 & temp.Right_Cursor_Lat~=0,:);
+    diopsys.n75_pt(x) = mean(temp.Left_Cursor_Lat);
+    diopsys.p100_pt(x) = mean(temp.Right_Cursor_Lat);
+    diopsys.delta_amp(x) = mean(temp.Delta_Amp);
+    diopsys.sessNum(x) = height(temp);
+end
+
+
+n75_pt = diopsys.n75_pt;
+p100_pt = diopsys.p100_pt;
+n75p100_amp = diopsys.delta_amp;
+
+n75_ptG = peak(:,1);
+p100_ptG = peak(:,2);
+n75p100_ampG = abs(diff(amp(:,1:2),1,2));
+
+% Bland Altman Plots
+
+fig = figure(302);
+subplot(1,3,1)
+diff_n75pt = diff([n75_pt n75_ptG],[],2);
+mean_n75pt = mean([n75_pt n75_ptG],2);
+hold on
+plot(mean_n75pt,diff_n75pt,'o','MarkerFaceColor',[0.5 0.5 0.5],'MarkerEdgeColor','w','Color',[0.5 0.5 0.5])
+plot([min(mean_n75pt) max(mean_n75pt)],[mean(diff_n75pt) mean(diff_n75pt)],'--k')
+plot([min(mean_n75pt) max(mean_n75pt)],[mean(diff_n75pt)+std(diff_n75pt)*1.96 mean(diff_n75pt)+std(diff_n75pt)*1.96],'--k')
+plot([min(mean_n75pt) max(mean_n75pt)],[mean(diff_n75pt)+std(diff_n75pt)*-1.96 mean(diff_n75pt)+std(diff_n75pt)*-1.96],'--k')
+text(max(mean_n75pt)-2,mean(diff_n75pt)+std(diff_n75pt)*-1.96-2,sprintf('%2.1f',mean(diff_n75pt)+std(diff_n75pt)*-1.96));
+text(max(mean_n75pt)-2,mean(diff_n75pt)+std(diff_n75pt)*1.96+2,sprintf('%2.1f',mean(diff_n75pt)+std(diff_n75pt)*1.96));
+title('N75 peak time')
+xlabel('Average of methods')
+ylabel('Difference between methods')
+ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.XLim = [min(mean_n75pt), max(mean_n75pt)]; ax.YLim = [-50,50];
+
+
+subplot(1,3,2)
+diff_p100pt = diff([p100_pt p100_ptG],[],2);
+mean_p100pt = mean([p100_pt p100_ptG],2);
+hold on
+plot(mean_p100pt,diff_p100pt,'o','MarkerFaceColor',[0.5 0.5 0.5],'MarkerEdgeColor','w','Color',[0.5 0.5 0.5])
+plot([min(mean_p100pt) max(mean_p100pt)],[mean(diff_p100pt) mean(diff_p100pt)],'--k')
+plot([min(mean_p100pt) max(mean_p100pt)],[mean(diff_p100pt)+std(diff_p100pt)*1.96 mean(diff_p100pt)+std(diff_p100pt)*1.96],'--k')
+plot([min(mean_p100pt) max(mean_p100pt)],[mean(diff_p100pt)+std(diff_p100pt)*-1.96 mean(diff_p100pt)+std(diff_p100pt)*-1.96],'--k')
+text(max(mean_p100pt)-2,mean(diff_p100pt)+std(diff_p100pt)*-1.96-2,sprintf('%2.1f',mean(diff_p100pt)+std(diff_p100pt)*-1.96));
+text(max(mean_p100pt)-2,mean(diff_p100pt)+std(diff_p100pt)*1.96+2,sprintf('%2.1f',mean(diff_p100pt)+std(diff_p100pt)*1.96));
+title('P100 peak time')
+xlabel('Average of methods')
+ylabel('Difference between methods')
+ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.XLim = [min(mean_p100pt), max(mean_p100pt)]; ax.YLim = [-50,50];
+
+subplot(1,3,3)
+diff_amp = diff([n75p100_amp n75p100_ampG],[],2);
+mean_amp = mean([n75p100_amp n75p100_ampG],2);
+hold on
+plot(mean_amp,diff_amp,'o','MarkerFaceColor',[0.5 0.5 0.5],'MarkerEdgeColor','w','Color',[0.5 0.5 0.5])
+plot([min(mean_amp) max(mean_amp)],[mean(diff_amp) mean(diff_amp)],'--k')
+plot([min(mean_amp) max(mean_amp)],[mean(diff_amp)+std(diff_amp)*1.96 mean(diff_amp)+std(diff_amp)*1.96],'--k')
+plot([min(mean_amp) max(mean_amp)],[mean(diff_amp)+std(diff_amp)*-1.96 mean(diff_amp)+std(diff_amp)*-1.96],'--k')
+text(max(mean_amp)-2,mean(diff_amp)+std(diff_amp)*-1.96-2,sprintf('%2.1f',mean(diff_amp)+std(diff_amp)*-1.96));
+text(max(mean_amp)-2,mean(diff_amp)+std(diff_amp)*1.96+2,sprintf('%2.1f',mean(diff_amp)+std(diff_amp)*1.96));
+title('N75-P100 amplitude')
+xlabel('Average of methods')
+ylabel('Difference between methods')
+ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.XLim = [min(mean_amp), max(mean_amp)]; ax.YLim = [-50,50];
+
+fig_name = '/Users/pattersonc/Library/CloudStorage/OneDrive-Children''sHospitalofPhiladelphia/Research/Minds Matter/Figures/InformedBasisSet/DoG_vs_PeakAnalysis';
+print(fig,fig_name,'-dpdf','-painters')
 
 %% age and VEP
 
@@ -400,3 +480,12 @@ params_tbl.amp1 = amp(:,1); params_tbl.amp2 = amp(:,2); params_tbl.amp3 = amp(:,
 
 
 mdl_age = fitlm(params_tbl,'age ~ bw1 + bw2 + bw3 + bw4 + pt1 + pt2 + pt3 + pt4 + amp1 + amp2 + amp3 + amp4');
+
+% find patients with no chronic medical conditions and not on neuro-active
+% medications
+noMedHx = params_tbl(~ismember(subject.uniqueID,neuro_active_meds) & subject.med_hx___1~=1 & subject.med_hx___2~=1 ...
+& subject.med_hx___3~=1 & subject.med_hx___4~=1 & subject.med_hx___6~=1 & subject.med_hx___15~=1 & subject.med_hx___16~=1 & subject.med_hx___17==0 ...
+& subject.med_hx___18~=1 & subject.med_hx___19~=1 & subject.med_hx___20~=1 & subject.med_hx___21~=1 & subject.med_hx___23~=1 & subject.med_hx___24~=1 ...
+& subject.med_hx___25~=1 & subject.med_hx___26~=1 & subject.med_hx___27~=1 & subject.med_hx___28~=1,:);
+
+mdl_age_noMedHx = fitlm(noMedHx,'age ~ bw1 + bw2 + bw3 + bw4 + pt1 + pt2 + pt3 + pt4 + amp1 + amp2 + amp3 + amp4');
