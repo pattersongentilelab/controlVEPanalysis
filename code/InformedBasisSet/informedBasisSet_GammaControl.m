@@ -37,10 +37,13 @@ clear uniqueID
 % vep = vep(ismember(subject.uniqueID,temp),:);
 
 
+
 % shift VEP to 0 = mean response
 for x = 1:size(vep)
         ydata = vep(x,:);
-        vep(x,:) = ydata - mean(ydata);
+        ydata = ydata - mean(ydata);
+%         ydata = ydata./abs(max(ydata)); % normalize by absolute maximum response
+        vep(x,:) = ydata;
 end
 
 %% Fit gamma model to selected subjects
