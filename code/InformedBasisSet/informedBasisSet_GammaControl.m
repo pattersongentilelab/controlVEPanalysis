@@ -42,7 +42,7 @@ clear uniqueID
 for x = 1:size(vep)
         ydata = vep(x,:);
         ydata = ydata - mean(ydata);
-%         ydata = ydata./abs(max(ydata)); % normalize by absolute maximum response
+%         ydata = ydata./max(abs(ydata)); % normalize by absolute maximum response
         vep(x,:) = ydata;
 end
 
