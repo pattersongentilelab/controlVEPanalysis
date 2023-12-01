@@ -446,13 +446,3 @@ params_tbl1 = subject;
 params_tbl1.bw1 = bandwidth(:,1); params_tbl1.bw2 = bandwidth(:,2); params_tbl1.bw3 = bandwidth(:,3); params_tbl1.bw4 = bandwidth(:,4);
 params_tbl1.pt1 = peak(:,1); params_tbl1.pt2 = peak(:,2); params_tbl1.pt3 = peak(:,3); params_tbl1.pt4 = peak(:,4);
 params_tbl1.amp1 = amp(:,1); params_tbl1.amp2 = amp(:,2); params_tbl1.amp3 = amp(:,3); params_tbl1.amp4 = amp(:,4);
-
-mdl_Mig = fitglm(params_tbl1,'Mig ~ bw1 + bw2 + bw3 + bw4 + pt1 + pt2 + pt3 + pt4 + amp1 + amp2 + amp3 + amp4','Distribution','binomial');
-
-mdl_MigP100 = fitglm(params_tbl1,'Mig ~ bw2 + pt2 + amp2','Distribution','binomial');
-
-mdl_pcsiMig = fitlm(params_tbl1,'migrainePCSI ~ bw1 + bw2 + bw3 + bw4 + pt1 + pt2 + pt3 + pt4 + amp1 + amp2 + amp3 + amp4','RobustOpts','on');
-
-mdl_persist28 = fitglm(params_tbl_predict,'persist28 ~ amp2','Distribution','binomial');
-
-

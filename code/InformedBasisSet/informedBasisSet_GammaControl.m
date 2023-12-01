@@ -31,11 +31,6 @@ for x = 1:length(uniqueID)
 end
 clear uniqueID
 
-% %remove participants on neuroactive meds
-% temp = setdiff(subject.uniqueID,neuro_active_meds);
-% subject = subject(ismember(subject.uniqueID,temp),:);
-% vep = vep(ismember(subject.uniqueID,temp),:);
-
 
 
 % shift VEP to 0 = mean response
@@ -347,10 +342,6 @@ for i = 1:size(vep,1)
     clf
 end
 
-%% Cross correlogram for all parameters
-Y = [bandwidth peak amp];
-[corrParams,pCorrParams] = corrcoef(Y);
-
 %% comparison of peak analysis (diopsys) to difference-of-gammas model
 
 % Compile diopsys measurements
@@ -434,55 +425,116 @@ print(fig,fig_name,'-dpdf','-painters')
 
 %% age and VEP
 
-% select only subjects who are not on neuroactive medications and 
 
-% Plot parameters as a function of age
-
-figure(300)
-z = 1;
-for x = 1:3
-    for y = 1:nGamma
-        subplot(3,nGamma,z)
-        hold on
-        ax=gca; ax.TickDir = 'out'; ax.Box = 'off';
-    
-        switch x
-            case 1
-                plot(subject.age_vep,bandwidth(:,y),'o','MarkerFaceColor',gammaC{y},'MarkerEdgeColor','w','Color',gammaC{y})
-                lsline
-                [rr,pp] = corrcoef(subject.age_vep,bandwidth(:,y));
-                rr2 = rr(1,2)^2;
-                title(sprintf('bandwidth %1d',y))
-                ylim([0 max(max(bandwidth))])
-            case 2
-                plot(subject.age_vep,peak(:,y),'o','MarkerFaceColor',gammaC{y},'MarkerEdgeColor','w','Color',gammaC{y})
-                lsline
-                plot([10 20],[lb((y*3)-1) lb((y*3)-1)],'--')
-                plot([10 20],[ub((y*3)-1) ub((y*3)-1)],'--')
-                [rr,pp] = corrcoef(subject.age_vep,peak(:,y));
-                rr2 = rr(1,2)^2;
-                title(sprintf('peak time %1d',y))
-                ylim([0 400])
-            case 3
-                plot(subject.age_vep,abs(amp(:,y)),'o','MarkerFaceColor',gammaC{y},'MarkerEdgeColor','w','Color',gammaC{y})
-                lsline
-                [rr,pp] = corrcoef(subject.age_vep,amp(:,y));
-                rr2 = rr(1,2)^2;
-                title(sprintf('amplitude %1d',y))
-                ylim([0 max(max(amp))])
-        end
-        xlabel(sprintf('r = %2.2f, p = %0.2g',[rr(1,2) pp(1,2)]))
-        z = z+1;
-    end
-end
 
 params_tbl = table([subject.age_vep],'VariableNames',{'age'});
+params_tbl.sex = subject.sex_master-1;
+params_tbl.concHx = subject.conc_hx_yn;
 params_tbl.bw1 = bandwidth(:,1); params_tbl.bw2 = bandwidth(:,2); params_tbl.bw3 = bandwidth(:,3); params_tbl.bw4 = bandwidth(:,4);
 params_tbl.pt1 = peak(:,1); params_tbl.pt2 = peak(:,2); params_tbl.pt3 = peak(:,3); params_tbl.pt4 = peak(:,4);
 params_tbl.amp1 = amp(:,1); params_tbl.amp2 = amp(:,2); params_tbl.amp3 = amp(:,3); params_tbl.amp4 = amp(:,4);
 
+% Plot parameters as a function of age, no significant past medical history
+% only
 
-mdl_age = fitlm(params_tbl,'age ~ bw1 + bw2 + bw3 + bw4 + pt1 + pt2 + pt3 + pt4 + amp1 + amp2 + amp3 + amp4');
+figure(300)
+
+z = 1;
+for x = 1:(3*nGamma)
+    subplot(nGamma,3,z)
+    hold on
+    ax=gca; ax.TickDir = 'out'; ax.Box = 'off';
+
+    switch x
+        case 1
+            plot(params_tbl.age,params_tbl.bw1,'o','MarkerFaceColor',gammaC{1},'MarkerEdgeColor','w','Color',gammaC{y})
+            lsline
+            [rr,pp] = corrcoef(params_tbl.age,params_tbl.bw1);
+            rr2 = rr(1,2)^2;
+            title('bandwidth 1')
+            ylim([0 max(params_tbl.bw4)])
+        case 2
+            plot(params_tbl.age,params_tbl.pt1,'o','MarkerFaceColor',gammaC{1},'MarkerEdgeColor','w','Color',gammaC{y})
+            lsline
+            [rr,pp] = corrcoef(params_tbl.age,params_tbl.pt1);
+            rr2 = rr(1,2)^2;
+            title('peak time 1')
+            ylim([0 400])
+        case 3
+            plot(params_tbl.age,params_tbl.amp1,'o','MarkerFaceColor',gammaC{1},'MarkerEdgeColor','w','Color',gammaC{y})
+            lsline
+            [rr,pp] = corrcoef(params_tbl.age,params_tbl.amp1);
+            rr2 = rr(1,2)^2;
+            title('amplitude 1')
+            ylim([min(params_tbl.amp1) 0])
+        case 4
+            plot(params_tbl.age,params_tbl.bw2,'o','MarkerFaceColor',gammaC{2},'MarkerEdgeColor','w','Color',gammaC{y})
+            lsline
+            [rr,pp] = corrcoef(params_tbl.age,params_tbl.bw2);
+            rr2 = rr(1,2)^2;
+            title('bandwidth 2')
+            ylim([0 max(params_tbl.bw4)])
+        case 5
+            plot(params_tbl.age,params_tbl.pt2,'o','MarkerFaceColor',gammaC{2},'MarkerEdgeColor','w','Color',gammaC{y})
+            lsline
+            [rr,pp] = corrcoef(params_tbl.age,params_tbl.pt2);
+            rr2 = rr(1,2)^2;
+            title('peak time 2')
+            ylim([0 400])
+        case 6
+            plot(params_tbl.age,params_tbl.amp2,'o','MarkerFaceColor',gammaC{2},'MarkerEdgeColor','w','Color',gammaC{y})
+            lsline
+            [rr,pp] = corrcoef(params_tbl.age,params_tbl.amp2);
+            rr2 = rr(1,2)^2;
+            title('amplitude 2')
+            ylim([0 max(params_tbl.amp2)])
+        case 7
+            plot(params_tbl.age,params_tbl.bw3,'o','MarkerFaceColor',gammaC{3},'MarkerEdgeColor','w','Color',gammaC{y})
+            lsline
+            [rr,pp] = corrcoef(params_tbl.age,params_tbl.bw3);
+            rr2 = rr(1,2)^2;
+            title('bandwidth 3')
+            ylim([0 max(params_tbl.bw4)])
+        case 8
+            plot(params_tbl.age,params_tbl.pt3,'o','MarkerFaceColor',gammaC{3},'MarkerEdgeColor','w','Color',gammaC{y})
+            lsline
+            [rr,pp] = corrcoef(params_tbl.age,params_tbl.pt3);
+            rr2 = rr(1,2)^2;
+            title('peak time 3')
+            ylim([0 400])
+        case 9
+            plot(params_tbl.age,params_tbl.amp3,'o','MarkerFaceColor',gammaC{3},'MarkerEdgeColor','w','Color',gammaC{y})
+            lsline
+            [rr,pp] = corrcoef(params_tbl.age,params_tbl.amp3);
+            rr2 = rr(1,2)^2;
+            ylim([min(params_tbl.amp3) 0])
+            title('amplitude 3')
+        case 10
+            plot(params_tbl.age,params_tbl.bw4,'o','MarkerFaceColor',gammaC{4},'MarkerEdgeColor','w','Color',gammaC{y})
+            lsline
+            [rr,pp] = corrcoef(params_tbl.age,params_tbl.bw4);
+            rr2 = rr(1,2)^2;
+            title('bandwidth 4')
+            ylim([0 max(params_tbl.bw4)])
+        case 11
+            plot(params_tbl.age,params_tbl.pt4,'o','MarkerFaceColor',gammaC{4},'MarkerEdgeColor','w','Color',gammaC{y})
+            lsline
+            [rr,pp] = corrcoef(params_tbl.age,params_tbl.pt4);
+            rr2 = rr(1,2)^2;
+            title('peak time 4')
+            ylim([0 400])
+        case 12
+            plot(params_tbl.age,params_tbl.amp4,'o','MarkerFaceColor',gammaC{4},'MarkerEdgeColor','w','Color',gammaC{y})
+            lsline
+            [rr,pp] = corrcoef(params_tbl.age,params_tbl.amp4);
+            rr2 = rr(1,2)^2;
+            title('amplitude 4')
+            ylim([0 max(params_tbl.amp4)])
+
+    end
+    xlabel(sprintf('r = %2.2f, p = %0.2g',[rr(1,2) pp(1,2)]))
+    z = z+1;
+end
 
 % find patients with no chronic medical conditions and not on neuro-active
 % medications
@@ -491,4 +543,133 @@ noMedHx = params_tbl(~ismember(subject.uniqueID,neuro_active_meds) & subject.med
 & subject.med_hx___18~=1 & subject.med_hx___19~=1 & subject.med_hx___20~=1 & subject.med_hx___21~=1 & subject.med_hx___23~=1 & subject.med_hx___24~=1 ...
 & subject.med_hx___25~=1 & subject.med_hx___26~=1 & subject.med_hx___27~=1 & subject.med_hx___28~=1,:);
 
+vep_noMedHx = vep(~ismember(subject.uniqueID,neuro_active_meds) & subject.med_hx___1~=1 & subject.med_hx___2~=1 ...
+& subject.med_hx___3~=1 & subject.med_hx___4~=1 & subject.med_hx___6~=1 & subject.med_hx___15~=1 & subject.med_hx___16~=1 & subject.med_hx___17==0 ...
+& subject.med_hx___18~=1 & subject.med_hx___19~=1 & subject.med_hx___20~=1 & subject.med_hx___21~=1 & subject.med_hx___23~=1 & subject.med_hx___24~=1 ...
+& subject.med_hx___25~=1 & subject.med_hx___26~=1 & subject.med_hx___27~=1 & subject.med_hx___28~=1,:);
+
 mdl_age_noMedHx = fitlm(noMedHx,'age ~ bw1 + bw2 + bw3 + bw4 + pt1 + pt2 + pt3 + pt4 + amp1 + amp2 + amp3 + amp4');
+
+mdl_sex_noMedHx = fitglm(noMedHx,'sex ~ bw1 + bw2 + bw3 + bw4 + pt1 + pt2 + pt3 + pt4 + amp1 + amp2 + amp3 + amp4','Distribution','binomial');
+
+mdl_concHx_noMedHx = fitglm(noMedHx,'concHx ~ bw1 + bw2 + bw3 + bw4 + pt1 + pt2 + pt3 + pt4 + amp1 + amp2 + amp3 + amp4','Distribution','binomial');
+% also remove those with remote history of concussion
+% find patients with no chronic medical conditions and not on neuro-active
+% medications
+noMedHxConc = params_tbl(~ismember(subject.uniqueID,neuro_active_meds) & subject.med_hx___1~=1 & subject.med_hx___2~=1 ...
+& subject.med_hx___3~=1 & subject.med_hx___4~=1 & subject.med_hx___6~=1 & subject.med_hx___15~=1 & subject.med_hx___16~=1 & subject.med_hx___17==0 ...
+& subject.med_hx___18~=1 & subject.med_hx___19~=1 & subject.med_hx___20~=1 & subject.med_hx___21~=1 & subject.med_hx___23~=1 & subject.med_hx___24~=1 ...
+& subject.med_hx___25~=1 & subject.med_hx___26~=1 & subject.med_hx___27~=1 & subject.med_hx___28~=1 & subject.conc_hx_yn~=1,:);
+
+vep_noMedHxConc = vep(~ismember(subject.uniqueID,neuro_active_meds) & subject.med_hx___1~=1 & subject.med_hx___2~=1 ...
+& subject.med_hx___3~=1 & subject.med_hx___4~=1 & subject.med_hx___6~=1 & subject.med_hx___15~=1 & subject.med_hx___16~=1 & subject.med_hx___17==0 ...
+& subject.med_hx___18~=1 & subject.med_hx___19~=1 & subject.med_hx___20~=1 & subject.med_hx___21~=1 & subject.med_hx___23~=1 & subject.med_hx___24~=1 ...
+& subject.med_hx___25~=1 & subject.med_hx___26~=1 & subject.med_hx___27~=1 & subject.med_hx___28~=1 & subject.conc_hx_yn~=1,:);
+
+
+
+% Plot parameters as a function of age, no significant past medical history
+% only
+
+figure(301)
+
+z = 1;
+for x = 1:(3*nGamma)
+    subplot(nGamma,3,z)
+    hold on
+    ax=gca; ax.TickDir = 'out'; ax.Box = 'off';
+
+    switch x
+        case 1
+            plot(noMedHxConc.age,noMedHxConc.bw1,'o','MarkerFaceColor',gammaC{1},'MarkerEdgeColor','w','Color',gammaC{y})
+            lsline
+            [rr,pp] = corrcoef(noMedHxConc.age,noMedHxConc.bw1);
+            rr2 = rr(1,2)^2;
+            title('bandwidth 1')
+            ylim([0 max(noMedHxConc.bw4)])
+        case 2
+            plot(noMedHxConc.age,noMedHxConc.pt1,'o','MarkerFaceColor',gammaC{1},'MarkerEdgeColor','w','Color',gammaC{y})
+            lsline
+            [rr,pp] = corrcoef(noMedHxConc.age,noMedHxConc.pt1);
+            rr2 = rr(1,2)^2;
+            title('peak time 1')
+            ylim([0 400])
+        case 3
+            plot(noMedHxConc.age,noMedHxConc.amp1,'o','MarkerFaceColor',gammaC{1},'MarkerEdgeColor','w','Color',gammaC{y})
+            lsline
+            [rr,pp] = corrcoef(noMedHxConc.age,noMedHxConc.amp1);
+            rr2 = rr(1,2)^2;
+            title('amplitude 1')
+            ylim([min(noMedHxConc.amp1) 0])
+        case 4
+            plot(noMedHxConc.age,noMedHxConc.bw2,'o','MarkerFaceColor',gammaC{2},'MarkerEdgeColor','w','Color',gammaC{y})
+            lsline
+            [rr,pp] = corrcoef(noMedHxConc.age,noMedHxConc.bw2);
+            rr2 = rr(1,2)^2;
+            title('bandwidth 2')
+            ylim([0 max(noMedHxConc.bw4)])
+        case 5
+            plot(noMedHxConc.age,noMedHxConc.pt2,'o','MarkerFaceColor',gammaC{2},'MarkerEdgeColor','w','Color',gammaC{y})
+            lsline
+            [rr,pp] = corrcoef(noMedHxConc.age,noMedHxConc.pt2);
+            rr2 = rr(1,2)^2;
+            title('peak time 2')
+            ylim([0 400])
+        case 6
+            plot(noMedHxConc.age,noMedHxConc.amp2,'o','MarkerFaceColor',gammaC{2},'MarkerEdgeColor','w','Color',gammaC{y})
+            lsline
+            [rr,pp] = corrcoef(noMedHxConc.age,noMedHxConc.amp2);
+            rr2 = rr(1,2)^2;
+            title('amplitude 2')
+            ylim([0 max(noMedHxConc.amp2)])
+        case 7
+            plot(noMedHxConc.age,noMedHxConc.bw3,'o','MarkerFaceColor',gammaC{3},'MarkerEdgeColor','w','Color',gammaC{y})
+            lsline
+            [rr,pp] = corrcoef(noMedHxConc.age,noMedHxConc.bw3);
+            rr2 = rr(1,2)^2;
+            title('bandwidth 3')
+            ylim([0 max(noMedHxConc.bw4)])
+        case 8
+            plot(noMedHxConc.age,noMedHxConc.pt3,'o','MarkerFaceColor',gammaC{3},'MarkerEdgeColor','w','Color',gammaC{y})
+            lsline
+            [rr,pp] = corrcoef(noMedHxConc.age,noMedHxConc.pt3);
+            rr2 = rr(1,2)^2;
+            title('peak time 3')
+            ylim([0 400])
+        case 9
+            plot(noMedHxConc.age,noMedHxConc.amp3,'o','MarkerFaceColor',gammaC{3},'MarkerEdgeColor','w','Color',gammaC{y})
+            lsline
+            [rr,pp] = corrcoef(noMedHxConc.age,noMedHxConc.amp3);
+            rr2 = rr(1,2)^2;
+            ylim([min(noMedHxConc.amp3) 0])
+            title('amplitude 3')
+        case 10
+            plot(noMedHxConc.age,noMedHxConc.bw4,'o','MarkerFaceColor',gammaC{4},'MarkerEdgeColor','w','Color',gammaC{y})
+            lsline
+            [rr,pp] = corrcoef(noMedHxConc.age,noMedHxConc.bw4);
+            rr2 = rr(1,2)^2;
+            title('bandwidth 4')
+            ylim([0 max(noMedHxConc.bw4)])
+        case 11
+            plot(noMedHxConc.age,noMedHxConc.pt4,'o','MarkerFaceColor',gammaC{4},'MarkerEdgeColor','w','Color',gammaC{y})
+            lsline
+            [rr,pp] = corrcoef(noMedHxConc.age,noMedHxConc.pt4);
+            rr2 = rr(1,2)^2;
+            title('peak time 4')
+            ylim([0 400])
+        case 12
+            plot(noMedHxConc.age,noMedHxConc.amp4,'o','MarkerFaceColor',gammaC{4},'MarkerEdgeColor','w','Color',gammaC{y})
+            lsline
+            [rr,pp] = corrcoef(noMedHxConc.age,noMedHxConc.amp4);
+            rr2 = rr(1,2)^2;
+            title('amplitude 4')
+            ylim([0 max(noMedHxConc.amp4)])
+
+    end
+    xlabel(sprintf('r = %2.2f, p = %0.2g',[rr(1,2) pp(1,2)]))
+    z = z+1;
+end
+
+
+params = [params_tbl.bw1 params_tbl.bw2 params_tbl.bw3 params_tbl.bw4 params_tbl.pt1 params_tbl.pt2 params_tbl.pt3 params_tbl.pt4 abs(params_tbl.amp1) params_tbl.amp2 abs(params_tbl.amp3) params_tbl.amp4];
+xParam = corrcoef(params);
