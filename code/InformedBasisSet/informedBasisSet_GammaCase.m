@@ -22,6 +22,8 @@ vep = zeros(1,length(xdata));
 subject = case_vep_subjects(1,:);
 uniqueID = unique(case_vep_subjects.uniqueID);
 
+signal_var = NaN*ones(69,1);
+noise_var = NaN*ones(69,1);
 counter = 1;
 for x = 1:length(uniqueID)
     temp_loc = find(cell2mat(cleaned_vep(:,1))==uniqueID(x));
@@ -40,7 +42,7 @@ clear uniqueID
 
 subject.snr = signal_var./noise_var;
 
-% filled out teen PCSI and was seen within 2 weeks of concussion
+% filled out teen PCSI and was seen within 28 days of concussion
 subject = subject(subject.dayspostinj<=28 & ~isnan(subject.teenPCSI_score_total),:);
 vep = vep(subject.dayspostinj<=28 & ~isnan(subject.teenPCSI_score_total),:);
 
