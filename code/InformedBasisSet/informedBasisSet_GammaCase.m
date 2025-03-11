@@ -435,7 +435,7 @@ for i = 1:size(vep,1)
 end
 
 
-
+[pP100amp,tblP100amp,statsP100amp] = kruskalwallis(amp(:,2),subject.Mig);
 
 %% plot parameters
 
