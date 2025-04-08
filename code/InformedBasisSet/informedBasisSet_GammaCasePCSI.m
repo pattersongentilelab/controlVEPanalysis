@@ -4,7 +4,7 @@ data_path = getpref('controlVEPanalysis','MindsMatter_DataPath');
 load([data_path '/randControlTrainTest.mat']) % participants selected for train and test
 load([data_path '/cleaned_VEP.mat'])
 
-
+Normalize = 1;
 
 case_subject = find(cleaned_vep_files.subjecttype=='Case');
 cleaned_vep = cleaned_vep(case_subject,:);
@@ -22,31 +22,25 @@ vep = zeros(1,length(xdata)+1);
 subject = case_vep_subjects(1,:);
 uniqueID = unique(case_vep_subjects.uniqueID);
 
-signal_var = NaN*ones(69,1);
-noise_var = NaN*ones(69,1);
-counter = 1;
+signal_var = NaN*ones(length(uniqueID),1);
+noise_var = NaN*ones(length(uniqueID),1);
 for x = 1:length(uniqueID)
     temp_loc = find(cell2mat(cleaned_vep(:,1))==uniqueID(x));
-    if size(cleaned_vep{temp_loc(1),4},1)>150
-        vep(counter,:) = [uniqueID(x) mean(cleaned_vep{temp_loc(1),4},1)];
-        subject(counter,:) = case_vep_subjects(temp_loc(1),:);
-        temp = cleaned_vep{temp_loc(1),4};
-        temp2 = mean(cleaned_vep{temp_loc(1),4},1);
-        signal_var(counter,:) = var(temp2);
-        noise_var(counter,:) = mean(var(temp-temp2));
-        counter = counter+1;
-    end
+    vep(x,:) = [uniqueID(x) mean(cleaned_vep{temp_loc(1),4},1)];
+    subject(x,:) = case_vep_subjects(temp_loc(1),:);
+    temp = cleaned_vep{temp_loc(1),4};
+    temp2 = mean(cleaned_vep{temp_loc(1),4},1);
+    signal_var(x,:) = var(temp2);
+    noise_var(x,:) = mean(var(temp-temp2));
     clear temp_loc
 end
-clear uniqueID
+clear uniqueID temp*
 
 subject.snr = signal_var./noise_var;
 
 % filled out teen PCSI and was seen within 28 days of concussion
 vep = vep(subject.dayspostinj<=28 & ~isnan(subject.teenPCSI_score_total),:);
 subject = subject(subject.dayspostinj<=28 & ~isnan(subject.teenPCSI_score_total),:);
-
-
 
 % determine days post injury symptom free
 
@@ -97,24 +91,33 @@ for j = 1:height(subject)
     end
 end
 
- vep = vep(subjectFU.uniqueID~=0,:);
- subject = subject(subjectFU.uniqueID~=0,:);
- subjectFU = subjectFU(subjectFU.uniqueID~=0,:);
- 
- 
- subjectFU.dayspost_recov = subject.dayspost_recov;
- subjectFU.persist28 = subject.persist28;
- subjectFU.snr =  subject.snr;
- 
+subject.persist28 = NaN*ones(height(subject),1);
+subject.persist28(subject.dayspost_recov<=28) = 0;
+subject.persist28(subject.dayspost_recov>28) = 1;
+
+
+vep = vep(subjectFU.uniqueID~=0,:);
+subject = subject(subjectFU.uniqueID~=0,:);
+subjectFU = subjectFU(subjectFU.uniqueID~=0,:);
+
+
+subjectFU.dayspost_recov = subject.dayspost_recov;
+subjectFU.persist28 = subject.persist28;
+subjectFU.snr =  subject.snr;
+
 subject.Mig = zeros(height(subject),1);
-subject.Mig(((subject.teenPCSI_senslight>0 & subject.teenPCSI_sensnoise>0)|subject.teenPCSI_nausea>0) & subject.teenPCSI_headache>=1) = 1;
+subject.Mig(subject.teenPCSI_score_physical>=7) = 1;
 subjectFU.Mig = zeros(height(subjectFU),1);
-subjectFU.Mig(((subjectFU.teenPCSI_senslight>0 & subjectFU.teenPCSI_sensnoise>0)|subjectFU.teenPCSI_nausea>0) & subjectFU.teenPCSI_headache>=1) = 1;
+subjectFU.Mig(subjectFU.teenPCSI_score_physical>=7) = 1;
+
 
 % shift VEP to 0 = mean response
 for x = 1:size(vep)
-        ydata = vep(x,2:end);
+        ydata = vep(x,2:end).*100; % correct for amplification error from diopsys
         ydata = ydata - mean(ydata);
+        if Normalize==1
+            ydata = ydata./max(abs(ydata)); % normalize by absolute maximum response
+        end
         vep(x,:) = [vep(x,1) ydata];
 end
 
@@ -155,10 +158,16 @@ Amp220 = zeros(size(vep,1),1);
 Peak220 = zeros(size(vep,1),1);
 Bw220 = zeros(size(vep,1),1);
 
+
+if Normalize==1
+    minAmpGuess = 0.1;
+else
+    minAmpGuess = 1;
+end
+
 for i = 1:size(vep,1)
         ydata = vep(i,2:end);
-        ydata = ydata./max(abs(ydata)); % normalize by absolute maximum response
-diffY = diff([min(ydata) max(ydata)]);
+        diffY = diff([min(ydata) max(ydata)]);
         min_loc = islocalmin(ydata,'MinProminence',diffY*.2);
         min_peak = xdata(min_loc==1);
         max_loc = islocalmax(ydata,'MinProminence',diffY*.2);
@@ -178,8 +187,8 @@ diffY = diff([min(ydata) max(ydata)]);
                 peak75 = peak75(1);
                 amp75 = ydata(xdata==peak75);
         end
-        if amp75>-0.01
-            amp75 = -0.01;
+        if amp75>-1*minAmpGuess
+            amp75 = -1*minAmpGuess;
         end
                 
          x = sum(max_loc(xdata>peak75+5 & xdata<130));
@@ -197,8 +206,8 @@ diffY = diff([min(ydata) max(ydata)]);
                 amp100 = ydata(xdata==peak100);
         end
         
-        if amp100<0.01
-            amp100 = 0.01;
+        if amp100<minAmpGuess
+            amp100 = minAmpGuess;
         end
        
         x = sum(min_loc(xdata>peak100+5 & xdata<200));
@@ -216,8 +225,8 @@ diffY = diff([min(ydata) max(ydata)]);
                 amp135 = ydata(xdata==peak135);
         end
         
-        if amp135>-0.01
-            amp135 = -0.01;
+        if amp135>-1*minAmpGuess
+            amp135 = -1*minAmpGuess;
         end
         
        x = sum(max_loc(xdata>peak135+30 & xdata<350));
@@ -235,8 +244,8 @@ diffY = diff([min(ydata) max(ydata)]);
                 amp220 = ydata(xdata==peak220);
         end
  
-        if amp220<0.01
-            amp220 = 0.01;
+        if amp220<minAmpGuess
+            amp220 = minAmpGuess;
         end
         
         bw75 = 10^((80-abs(diff([peak75 peak100])))/30);
@@ -287,7 +296,6 @@ end
 for i = 1:size(vep,1)
 
     ydata = vep(i,2:end);
-    ydata = ydata./max(abs(ydata)); % normalize by absolute maximum response
 
     p0 = [Bw75(i,:) Peak75(i,:) Amp75(i,:) Bw100(i,:) Peak100(i,:) Amp100(i,:) Bw135(i,:) Peak135(i,:) Amp135(i,:) Bw220(i,:) Peak220(i,:) Amp220(i,:)];
     lb = [max([30 Bw75(i,:)-5]) Peak75(i,:)-2 Amp75(i,:)*1.1 max([20 Bw100(i,:)-5]) Peak100(i,:)-3 Amp100(i,:)*0.9 max([15 Bw135(i,:)-5]) Peak135(i,:)-5 Amp135(i,:)*1.1 max([15 Bw220(i,:)-5]) Peak220(i,:)-5 Amp220(i,:)*0.9]; 
@@ -307,34 +315,6 @@ for i = 1:size(vep,1)
     r_val(i,:) = r(1,2);
     r = corrcoef(ydata(1,1:307),yFit(i,1:307));
     r_val300(i,:) = r(1,2);
-
-    switch i
-        case {1,9,17,25,33,41,49,57}
-            figure
-            j = 1;
-        case {5,13,21,29,37,45,53}
-            j = 9;
-        otherwise
-            j = j+1;
-    end
-
-    subplot(4,4,j)
-    plot(xdata,vep(i,2:end),'-','Color',[0.5 0.5 0.5])
-    hold on
-    plot(xdata,yFit(i,:),'-k','LineWidth',2)
-    ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.XLim = [0 time_end]; ax.YLim = [-2 2];
-    xlabel(sprintf('r = %2.2f',r_val(i)))
-    title(sprintf('%2.0f, C%2.0f, age = %2.0f',[i subject.uniqueID(i) subject.age_vep(i)]))
-    subplot(4,4,j+4)
-    hold on
-    for X = 1:nGamma
-         plot(mdl_x,gamma(X,:),['-' gammaC{X}])
-    end
-    ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.YLim = [-2 2]; ax.XLim = [0 time_end];
-    
-    switch i
-        case {8,16,24,32,40,48,56}
-    end
 end
 
 peak = mdl(:,2:3:end);
@@ -416,6 +396,7 @@ print(fig,fig_name,'-dpdf','-painters')
 
 plot_meanVEP(xdata,vep(subject.Mig==0,2:end,:),'errorbars','Boot','fig_num',206,'color_mean',[0 0 0],'color_err',[0.8 0.8 0.8]);
 plot_meanVEP(xdata,vep(subject.Mig==1,2:end,:),'errorbars','Boot','fig_num',206,'color_mean',[1 0 0],'color_err',[1 0.8 0.8]);
+
 %% Plot individual VEP to check fits
 
 figure
@@ -431,7 +412,10 @@ for i = 1:size(vep,1)
          text(peak(i,3),amp(i,3),sprintf('bw = %2.2f \n pt = %2.2f \n amp = %2.2f',[bandwidth(i,3) peak(i,3) amp(i,3)]));
          text(peak(i,4),amp(i,4),sprintf('bw = %2.2f \n pt = %2.2f \n amp = %2.2f',[bandwidth(i,4) peak(i,4) amp(i,4)]));
     end
-    ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.YLim = [-2 2]; ax.XLim = [0 time_end];
+    ax=gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.YLim = [-20 25]; ax.XLim = [0 time_end];
+    if Normalize==1
+        ax.YLim = [-2 2];
+    end
     xlabel(sprintf('subject %2.0f, Fit r = %2.2f',[subject.uniqueID(i) r_val(i,:)]))
     pause(0.5)
     clf
@@ -439,15 +423,3 @@ end
 
 
 [pP100amp,tblP100amp,statsP100amp] = kruskalwallis(amp(:,2),subject.Mig);
-
-%% plot parameters
-
-params_tbl_predict = subjectFU;
-params_tbl_predict.bw1 = bandwidth(:,1); params_tbl_predict.bw2 = bandwidth(:,2); params_tbl_predict.bw3 = bandwidth(:,3); params_tbl_predict.bw4 = bandwidth(:,4);
-params_tbl_predict.pt1 = peak(:,1); params_tbl_predict.pt2 = peak(:,2); params_tbl_predict.pt3 = peak(:,3); params_tbl_predict.pt4 = peak(:,4);
-params_tbl_predict.amp1 = amp(:,1); params_tbl_predict.amp2 = amp(:,2); params_tbl_predict.amp3 = amp(:,3); params_tbl_predict.amp4 = amp(:,4);
-
-params_tbl1 = subject;
-params_tbl1.bw1 = bandwidth(:,1); params_tbl1.bw2 = bandwidth(:,2); params_tbl1.bw3 = bandwidth(:,3); params_tbl1.bw4 = bandwidth(:,4);
-params_tbl1.pt1 = peak(:,1); params_tbl1.pt2 = peak(:,2); params_tbl1.pt3 = peak(:,3); params_tbl1.pt4 = peak(:,4);
-params_tbl1.amp1 = amp(:,1); params_tbl1.amp2 = amp(:,2); params_tbl1.amp3 = amp(:,3); params_tbl1.amp4 = amp(:,4);
