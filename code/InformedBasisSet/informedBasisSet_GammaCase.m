@@ -369,22 +369,26 @@ ax = gca; ax.TickDir = 'out'; ax.Box = 'off'; ax.XLim = [0 5]; title('recovered 
 
 for y = 1:nGamma
      
-    plot_meanVEP(mdl_x,squeeze(Gamma(subject.Mig==0,y,:)),'errorbars','Boot','fig_num',205,'sub_plot',true,'sub_plot_num',[1 2 1],'color_mean',[0 0 0],'color_err',[0.8 0.8 0.8]);
+    plot_meanVEP(mdl_x,squeeze(Gamma(subject.Mig==0,y,:)),'errorbars','STEr','fig_num',205,'sub_plot',true,'sub_plot_num',[1 2 1],'color_mean',[0 0 0],'color_err',[0.8 0.8 0.8]);
     
     figure(205)
     subplot(1,2,1)
-    bootPk = bootstrp(1000,@mean,peak(subject.Mig==0,y));
-    bootPk = sort(bootPk,1);
-    bootAmp = bootstrp(1000,@mean,amp(subject.Mig==0,y));
-    bootAmp = sort(bootAmp,1);
-    errorbar(bootPk(500),bootAmp(500),abs(diff(bootAmp([25 500]))),abs(diff(bootAmp([500 975]))),abs(diff(bootPk([25 500]))),abs(diff(bootPk([500 975]))),'o','LineWidth',2,'MarkerFaceColor','k','MarkerEdgeColor','w','Color','k')
+    temp = peak(subject.Mig==0,y);
+    temp2 = amp(subject.Mig==0,y);
+    mPk = mean(temp);
+    mAmp = mean(temp2);
+    N = length(temp);
+    errPk = std(temp)./sqrt(N-1);
+    errAmp = std(temp2)./sqrt(N-1);
+    errorbar(mPk,mAmp,errAmp,errAmp,errPk,errPk,'o','LineWidth',2,'MarkerFaceColor','k','MarkerEdgeColor','w','Color','k')
     
     figure(205)
     subplot(1,2,2)
     hold on
-    bootBW = bootstrp(1000,@mean,bandwidth(subject.Mig==0,y));
-    bootBW = sort(bootBW,1);
-    errorbar(y,bootBW(500),abs(diff(bootBW([25 500]))),abs(diff(bootBW([500 975]))),'o','LineWidth',2,'MarkerFaceColor','k','MarkerEdgeColor','w','Color','k')
+    temp3 = bandwidth(subject.Mig==0,y);
+    mBW = mean(temp3);
+    errBW = std(temp3)./sqrt(N-1);
+    errorbar(y,mBW,errBW,'o','LineWidth',2,'MarkerFaceColor','k','MarkerEdgeColor','w','Color','k')
 
 end
 
@@ -392,21 +396,23 @@ end
 
 
 for y = 1:nGamma
-    plot_meanVEP(mdl_x,squeeze(Gamma(subject.Mig==1,y,:)),'errorbars','Boot','fig_num',205,'sub_plot',true,'sub_plot_num',[1 2 1],'color_mean',[1 0 0],'color_err',[1 0.8 0.8]);
+    plot_meanVEP(mdl_x,squeeze(Gamma(subject.Mig==1,y,:)),'errorbars','STEr','fig_num',205,'sub_plot',true,'sub_plot_num',[1 2 1],'color_mean',[1 0 0],'color_err',[1 0.8 0.8]);
     figure(205)
-    subplot(1,2,1)
-    bootPk = bootstrp(1000,@mean,peak(subject.Mig==1,y));
-    bootPk = sort(bootPk,1);
-    bootAmp = bootstrp(1000,@mean,amp(subject.Mig==1,y));
-    bootAmp = sort(bootAmp,1);
-    errorbar(bootPk(500),bootAmp(500),abs(diff(bootAmp([25 500]))),abs(diff(bootAmp([500 975]))),abs(diff(bootPk([25 500]))),abs(diff(bootPk([500 975]))),'o','LineWidth',2,'MarkerFaceColor','r','MarkerEdgeColor','w','Color','r')
+    temp = peak(subject.Mig==1,y);
+    temp2 = amp(subject.Mig==1,y);
+    mPk = mean(temp);
+    mAmp = mean(temp2);
+    N = length(temp);
+    errPk = std(temp)./sqrt(N-1);
+    errAmp = std(temp2)./sqrt(N-1);
+    errorbar(mPk,mAmp,errAmp,errAmp,errPk,errPk,'o','LineWidth',2,'MarkerFaceColor','r','MarkerEdgeColor','w','Color','r')
     
     figure(205)
     subplot(1,2,2)
-    hold on
-    bootBW = bootstrp(1000,@mean,bandwidth(subject.Mig==1,y));
-    bootBW = sort(bootBW,1);
-    errorbar(y,bootBW(500),abs(diff(bootBW([25 500]))),abs(diff(bootBW([500 975]))),'o','LineWidth',2,'MarkerFaceColor','r','MarkerEdgeColor','w','Color','r')
+    temp3 = bandwidth(subject.Mig==1,y);
+    mBW = mean(temp3);
+    errBW = std(temp3)./sqrt(N-1);
+    errorbar(y,mBW,errBW,'o','LineWidth',2,'MarkerFaceColor','r','MarkerEdgeColor','w','Color','r')
 
 end
 
@@ -414,8 +420,8 @@ fig = figure(205);
 fig_name = '/Users/pattersonc/Library/CloudStorage/OneDrive-Children''sHospitalofPhiladelphia/Research/Minds Matter/Figures/InformedBasisSet_case/meanParamVEP_case_less28';
 print(fig,fig_name,'-dpdf','-painters')
 
-plot_meanVEP(xdata,vep(subject.Mig==0,2:end,:),'errorbars','Boot','fig_num',206,'color_mean',[0 0 0],'color_err',[0.8 0.8 0.8]);
-plot_meanVEP(xdata,vep(subject.Mig==1,2:end,:),'errorbars','Boot','fig_num',206,'color_mean',[1 0 0],'color_err',[1 0.8 0.8]);
+plot_meanVEP(xdata,vep(subjectFU.Mig==0,2:end,:),'errorbars','Boot','fig_num',206,'color_mean',[0 0 0],'color_err',[0.8 0.8 0.8]);
+plot_meanVEP(xdata,vep(subjectFU.Mig==1,2:end,:),'errorbars','Boot','fig_num',206,'color_mean',[1 0 0],'color_err',[1 0.8 0.8]);
 %% Plot individual VEP to check fits
 
 figure
@@ -438,7 +444,7 @@ for i = 1:size(vep,1)
 end
 
 
-[pP100amp,tblP100amp,statsP100amp] = kruskalwallis(amp(:,2),subject.Mig);
+[hP100amp,pP100amp] = ttest2(amp(:,2),subject.Mig);
 
 %% plot parameters
 
